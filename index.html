@@ -689,47 +689,12 @@
               align-items: center; justify-content: center; font-family: system-ui;
             `;
             
-            const canvas = document.createElement('canvas');
-            canvas.width = 500;
-            canvas.height = 500;
-            const ctx = canvas.getContext('2d');
+            // Create a temporary container to render the SVG
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = svgData;
+            const svgElement = tempDiv.querySelector('svg');
             
-            const img = new Image();
-            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-            const url = URL.createObjectURL(svgBlob);
-            
-            img.onload = () => {
-              // Fill white background
-              ctx.fillStyle = 'white';
-              ctx.fillRect(0, 0, 500, 500);
-              
-              // Draw mandala
-              ctx.drawImage(img, 0, 0, 500, 500);
-              
-              modal.innerHTML = `
-                <div style="
-                  background: white; padding: 30px; border-radius: 15px; 
-                  box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
-                ">
-                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
-                  <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                    Right-click the image below and select "Save image as..." to download your PNG.
-                  </p>
-                  <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px;">
-                    ${canvas.outerHTML}
-                  </div>
-                  <button onclick="this.closest('div').parentElement.remove()" style="
-                    background: #7C3AED; color: white; border: none; padding: 12px 24px;
-                    border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
-                  ">Close</button>
-                </div>
-              `;
-              
-              URL.revokeObjectURL(url);
-            };
-            
-            img.onerror = () => {
-              URL.revokeObjectURL(url);
+            if (!svgElement) {
               modal.innerHTML = `
                 <div style="
                   background: white; padding: 30px; border-radius: 15px; 
@@ -737,7 +702,99 @@
                 ">
                   <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
                   <p style="margin: 0 0 20px 0; color: #666;">
-                    PNG conversion failed. Try the SVG option instead.
+                    Could not find SVG element. Try the SVG option instead.
+                  </p>
+                  <button onclick="this.closest('div').parentElement.remove()" style="
+                    background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                    border-radius: 8px; cursor: pointer; font-weight: 600;
+                  ">Close</button>
+                </div>
+              `;
+              document.body.appendChild(modal);
+              return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 500;
+            canvas.height = 500;
+            const ctx = canvas.getContext('2d');
+            
+            // Convert SVG to data URL
+            const svgString = new XMLSerializer().serializeToString(svgElement);
+            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+            
+            const img = new Image();
+            
+            img.onload = () => {
+              try {
+                // Fill white background
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, 500, 500);
+                
+                // Draw mandala
+                ctx.drawImage(img, 0, 0, 500, 500);
+                
+                // Convert canvas to blob and create download link
+                canvas.toBlob((blob) => {
+                  const url = URL.createObjectURL(blob);
+                  
+                  modal.innerHTML = `
+                    <div style="
+                      background: white; padding: 30px; border-radius: 15px; 
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
+                    ">
+                      <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
+                      <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+                        Right-click the image below and select "Save image as..." to download your PNG.
+                      </p>
+                      <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px;">
+                        <img src="${url}" style="max-width: 100%; height: auto; border-radius: 8px;" alt="Mandala PNG" />
+                      </div>
+                      <div style="margin: 0 0 20px 0;">
+                        <a href="${url}" download="quorum-mandala.png" style="
+                          display: inline-block; background: #059669; color: white; text-decoration: none;
+                          padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
+                          margin-right: 10px;
+                        ">📱 Download PNG</a>
+                      </div>
+                      <button onclick="this.closest('div').parentElement.remove(); URL.revokeObjectURL('${url}')" style="
+                        background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                        border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                      ">Close</button>
+                    </div>
+                  `;
+                }, 'image/png');
+                
+              } catch (error) {
+                console.error('Canvas conversion failed:', error);
+                modal.innerHTML = `
+                  <div style="
+                    background: white; padding: 30px; border-radius: 15px; 
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+                  ">
+                    <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
+                    <p style="margin: 0 0 20px 0; color: #666;">
+                      Canvas conversion failed. Try the SVG option instead.
+                    </p>
+                    <button onclick="this.closest('div').parentElement.remove()" style="
+                      background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                      border-radius: 8px; cursor: pointer; font-weight: 600;
+                    ">Close</button>
+                  </div>
+                `;
+              }
+            };
+            
+            img.onerror = (error) => {
+              console.error('Image load failed:', error);
+              modal.innerHTML = `
+                <div style="
+                  background: white; padding: 30px; border-radius: 15px; 
+                  box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+                ">
+                  <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
+                  <p style="margin: 0 0 20px 0; color: #666;">
+                    Image conversion failed. Try the SVG option instead.
                   </p>
                   <button onclick="this.closest('div').parentElement.remove()" style="
                     background: #7C3AED; color: white; border: none; padding: 12px 24px;
@@ -747,8 +804,7 @@
               `;
             };
             
-            img.src = url;
-            
+            img.src = svgDataUrl;
             document.body.appendChild(modal);
             
             // Click outside to close
