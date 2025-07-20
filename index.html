@@ -613,15 +613,25 @@
             if (!isValidIPFSHash(userKey)) return;
             
             try {
-              // Find the main mandala SVG
-              const svgElement = document.querySelector('svg');
-              if (!svgElement) {
+              // Find the main mandala SVG - look for the one with viewBox that contains mandala elements
+              const svgElements = document.querySelectorAll('svg');
+              let mandalaSDG = null;
+              
+              // Find the largest SVG (mandala) or one with radialGradient
+              for (let svg of svgElements) {
+                if (svg.querySelector('radialGradient') || parseInt(svg.getAttribute('width')) >= 200) {
+                  mandalaSDG = svg;
+                  break;
+                }
+              }
+              
+              if (!mandalaSDG) {
                 alert('Could not find mandala to export');
                 return;
               }
 
               // Get clean SVG data
-              const svgData = svgElement.outerHTML
+              const svgData = mandalaSDG.outerHTML
                 .replace(/width="\d+"/, 'width="500"')
                 .replace(/height="\d+"/, 'height="500"');
 
@@ -874,7 +884,7 @@
               className: "grid grid-cols-1 gap-8"
             },
               React.createElement('div', {
-                className: "w-full max-w-md mx-auto"
+                className: "w-full max-w-4xl mx-auto"
               },
                 React.createElement('div', {
                   className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
@@ -886,14 +896,18 @@
                     className: "flex justify-center mb-6"
                   },
                     isValidKey ? React.createElement('div', {
-                      className: "relative"
+                      className: "relative w-full max-w-sm"
                     },
-                      generateMandalaAvatar(userKey, selectedScheme, 240, showQM),
+                      React.createElement('div', {
+                        className: "w-full aspect-square"
+                      },
+                        generateMandalaAvatar(userKey, selectedScheme, 400, showQM)
+                      ),
                       React.createElement('div', {
                         className: "absolute inset-0 rounded-full bg-gradient-to-t from-black/5 to-transparent"
                       })
                     ) : React.createElement('div', {
-                      className: "w-60 h-60 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner"
+                      className: "w-80 h-80 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner"
                     },
                       React.createElement(Sparkles, { size: 48, className: "text-gray-400" })
                     )
