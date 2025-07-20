@@ -412,10 +412,10 @@ const generateMandalaAvatar = (userKey, colorScheme, size = 120, showQM = false)
             height: "200%"
           },
             React.createElement('feDropShadow', {
-              dx: "4",
-              dy: "8",
-              stdDeviation: "6",
-              floodColor: "rgba(0,0,0,0.7)"
+              dx: "6",
+              dy: "12",
+              stdDeviation: "10",
+              floodColor: "rgba(0,0,0,0.9)"
             })
           )
         ),
@@ -426,7 +426,7 @@ const generateMandalaAvatar = (userKey, colorScheme, size = 120, showQM = false)
           dominantBaseline: "middle",
           fontSize: textSize,
           fontFamily: "'Nunito', Arial, sans-serif",
-          fontWeight: "700",
+          fontWeight: "600",
           fill: colorScheme.accent1,
           filter: `url(#${shadowId})`,
           opacity: 1,

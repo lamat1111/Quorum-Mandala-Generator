@@ -194,11 +194,8 @@ function AvatarCreator() {
       // Color Scheme Section (Bottom) - Only visible when mandala is displayed
       isValidKey && React.createElement('div', { className: 'mandala-section' },
         React.createElement('div', { style: { marginBottom: '1.5rem' } },
-          React.createElement('h3', { style: { marginBottom: '0.25rem' } }, 
+          React.createElement('h3', { style: { marginBottom: '2.5rem' } }, 
             "Choose Your Color Scheme"
-          ),
-          React.createElement('p', { style: { fontSize: '0.875rem', color: '#6b7280', margin: 0 } }, 
-            "The mandala pattern is determined by your Quorum key - only colors change"
           )
         ),
         

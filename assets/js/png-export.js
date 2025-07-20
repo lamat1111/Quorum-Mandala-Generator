@@ -99,7 +99,7 @@ class PNGExporter {
             /font-family="[^"]*"/g, 
             'font-family="NunitoPNG, Nunito, -apple-system, BlinkMacSystemFont, Arial, sans-serif"'
           );
-          svgString = svgString.replace(/font-weight="700"/g, 'font-weight="700"');
+          svgString = svgString.replace(/font-weight="600"/g, 'font-weight="600"');
         } else {
           // Font failed to load, use fallback
           return await this.convertToPNG(svgElement, false, filename);
@@ -110,7 +110,7 @@ class PNGExporter {
           /font-family="[^"]*"/g, 
           'font-family="Arial Black, Arial, Helvetica, sans-serif"'
         );
-        svgString = svgString.replace(/font-weight="700"/g, 'font-weight="900"');
+        svgString = svgString.replace(/font-weight="600"/g, 'font-weight="bold"');
       }
       
       // Ensure proper SVG namespace and encoding
@@ -197,7 +197,7 @@ class PNGExporter {
     this.modal = document.createElement('div');
     this.modal.style.cssText = `
       position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
+      background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
       align-items: center; justify-content: center; font-family: system-ui;
     `;
     document.body.appendChild(this.modal);
@@ -211,24 +211,30 @@ class PNGExporter {
   showSuccessModal(blob, filename, usedNunitoFont) {
     const url = URL.createObjectURL(blob);
     const fontNote = usedNunitoFont ? '' : 
-      '<p style="margin: 10px 0; color: #f59e0b; font-size: 13px;">Note: Using fallback font due to Nunito loading issues.</p>';
+      '<p style="margin: 10px 0; color: #fbbf24; font-size: 13px;">Note: Using fallback font due to Nunito loading issues.</p>';
     
     this.modal.innerHTML = `
       <div style="
-        background: white; padding: 30px; border-radius: 15px; 
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 500px; text-align: center;
+        background: rgba(29, 26, 33, 0.95); 
+        backdrop-filter: blur(10px);
+        padding: 30px; 
+        border-radius: 15px; 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
+        max-width: 500px; 
+        text-align: center;
+        border: 1px solid rgba(60, 55, 68, 0.4);
       ">
-        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
-        <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+        <h3 style="margin: 0 0 15px 0; color: #0287f2; font-size: 20px;">🖼️ PNG Ready!</h3>
+        <p style="margin: 0 0 20px 0; color: #b0b0b0; line-height: 1.5;">
           Your mandala PNG with transparent background is ready for download.
         </p>
         ${fontNote}
         <div style="
           margin: 0 0 20px 0; 
-          border: 2px dashed #ddd; 
+          border: 2px dashed rgba(60, 55, 68, 0.6); 
           border-radius: 10px; 
           padding: 20px; 
-          background: repeating-linear-gradient(45deg, #f8f9fa 0px, #f8f9fa 10px, #e9ecef 10px, #e9ecef 20px);
+          background: rgba(15, 13, 19, 0.8);
         ">
           <img src="${url}" style="
             width: 400px; 
@@ -241,7 +247,7 @@ class PNGExporter {
         <div style="margin: 0 0 20px 0;">
           <a href="${url}" download="${filename}" style="
             display: inline-block; 
-            background: #059669; 
+            background: linear-gradient(to right, #0287f2, #38bdf8); 
             color: white; 
             text-decoration: none;
             padding: 12px 24px; 
@@ -252,9 +258,9 @@ class PNGExporter {
           ">📱 Download PNG</a>
         </div>
         <button onclick="window.pngExporter.closeModal(); URL.revokeObjectURL('${url}')" style="
-          background: #7C3AED; 
-          color: white; 
-          border: none; 
+          background: rgba(60, 55, 68, 0.8); 
+          color: #b0b0b0; 
+          border: 1px solid rgba(60, 55, 68, 0.6); 
           padding: 12px 24px;
           border-radius: 8px; 
           cursor: pointer; 
@@ -270,16 +276,27 @@ class PNGExporter {
     
     this.modal.innerHTML = `
       <div style="
-        background: white; padding: 30px; border-radius: 15px; 
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+        background: rgba(29, 26, 33, 0.95); 
+        backdrop-filter: blur(10px);
+        padding: 30px; 
+        border-radius: 15px; 
+        box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
+        max-width: 450px; 
+        text-align: center;
+        border: 1px solid rgba(60, 55, 68, 0.4);
       ">
-        <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Export Failed</h3>
-        <p style="margin: 0 0 20px 0; color: #666;">
+        <h3 style="margin: 0 0 15px 0; color: #f87171;">❌ PNG Export Failed</h3>
+        <p style="margin: 0 0 20px 0; color: #b0b0b0;">
           ${message}
         </p>
         <button onclick="window.pngExporter.closeModal()" style="
-          background: #7C3AED; color: white; border: none; padding: 12px 24px;
-          border-radius: 8px; cursor: pointer; font-weight: 600;
+          background: rgba(60, 55, 68, 0.8); 
+          color: #b0b0b0; 
+          border: 1px solid rgba(60, 55, 68, 0.6); 
+          padding: 12px 24px;
+          border-radius: 8px; 
+          cursor: pointer; 
+          font-weight: 600;
         ">Close</button>
       </div>
     `;
@@ -317,31 +334,50 @@ const showSVGExportModal = () => {
   const modal = document.createElement('div');
   modal.style.cssText = `
     position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-    background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
+    background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
     align-items: center; justify-content: center; font-family: system-ui;
   `;
   
   modal.innerHTML = `
     <div style="
-      background: white; padding: 30px; border-radius: 15px; 
-      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+      background: rgba(29, 26, 33, 0.95); 
+      backdrop-filter: blur(10px);
+      padding: 30px; 
+      border-radius: 15px; 
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5); 
+      max-width: 450px; 
+      text-align: center;
+      border: 1px solid rgba(60, 55, 68, 0.4);
     ">
-      <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">✅ SVG Ready!</h3>
-      <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+      <h3 style="margin: 0 0 15px 0; color: #0287f2; font-size: 20px;">✅ SVG Ready!</h3>
+      <p style="margin: 0 0 20px 0; color: #b0b0b0; line-height: 1.5;">
         Your mandala SVG has been copied to your clipboard.
       </p>
       <div style="
-        background: #f8f9fa; padding: 15px; border-radius: 8px; 
-        margin: 0 0 20px 0; text-align: left; font-size: 14px;
+        background: rgba(15, 13, 19, 0.8); 
+        padding: 15px; 
+        border-radius: 8px; 
+        margin: 0 0 20px 0; 
+        text-align: left; 
+        font-size: 14px;
+        border: 1px solid rgba(60, 55, 68, 0.4);
       ">
-        <strong>To save as SVG file:</strong><br>
+        <strong style="color: #0287f2;">To save as SVG file:</strong><br>
+        <span style="color: #b0b0b0;">
         1. Open any text editor (Notepad, VS Code, etc.)<br>
         2. Paste (Ctrl+V / Cmd+V)<br>
         3. Save as "quorum-mandala.svg"
+        </span>
       </div>
       <button onclick="this.closest('div').parentElement.remove()" style="
-        background: #7C3AED; color: white; border: none; padding: 12px 24px;
-        border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+        background: linear-gradient(to right, #0287f2, #38bdf8); 
+        color: white; 
+        border: none; 
+        padding: 12px 24px;
+        border-radius: 8px; 
+        cursor: pointer; 
+        font-weight: 600; 
+        font-size: 14px;
       ">Got it!</button>
     </div>
   `;
