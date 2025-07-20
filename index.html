@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quorum Mandala Generator</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -21,931 +20,818 @@
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { Download, Shuffle, Sparkles } = lucide;
-
-// Advanced deterministic random generator
-class AestheticRandom {
-  constructor(seed) {
-    this.seed = this.hashString(seed);
-  }
-  
-  hashString(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash = hash & hash;
-    }
-    return Math.abs(hash);
-  }
-  
-  next() {
-    this.seed = (this.seed * 9301 + 49297) % 233280;
-    return this.seed / 233280;
-  }
-  
-  range(min, max) {
-    return min + this.next() * (max - min);
-  }
-  
-  choice(array) {
-    return array[Math.floor(this.next() * array.length)];
-  }
-}
-
-// Validate IPFS hash format
-const isValidIPFSHash = (key) => {
-  const base58Regex = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
-  return key.startsWith('Qm') && key.length === 46 && base58Regex.test(key);
-};
-
-// Beautiful, harmonious color schemes
-const AESTHETIC_SCHEMES = [
-  { name: 'Emerald Forest', bg1: '#064E3B', bg2: '#059669', accent1: '#FFFFFF', accent2: '#D1FAE5', accent3: '#6EE7B7' },
-  { name: 'Deep Ocean', bg1: '#1E3A8A', bg2: '#3B82F6', accent1: '#FFFFFF', accent2: '#DBEAFE', accent3: '#93C5FD' },
-  { name: 'Sapphire', bg1: '#1E40AF', bg2: '#2563EB', accent1: '#FFFFFF', accent2: '#DBEAFE', accent3: '#60A5FA' },
-  { name: 'Cosmic Nebula', bg1: '#581C87', bg2: '#A855F7', accent1: '#FFFFFF', accent2: '#F3E8FF', accent3: '#C084FC' },
-  { name: 'Galaxy', bg1: '#4C1D95', bg2: '#7C3AED', accent1: '#FFFFFF', accent2: '#EDE9FE', accent3: '#A78BFA' },
-  { name: 'Coral Reef', bg1: '#0F766E', bg2: '#14B8A6', accent1: '#FFFFFF', accent2: '#CCFBF1', accent3: '#5EEAD4' },
-  { name: 'Monochrome', bg1: '#111827', bg2: '#6B7280', accent1: '#FFFFFF', accent2: '#F3F4F6', accent3: '#D1D5DB' },
-  { name: 'Crimson Fire', bg1: '#7F1D1D', bg2: '#DC2626', accent1: '#FFFFFF', accent2: '#FEE2E2', accent3: '#F87171' },
-  { name: 'Rose Gold', bg1: '#BE185D', bg2: '#EC4899', accent1: '#FFFFFF', accent2: '#FCE7F3', accent3: '#F472B6' },
-  { name: 'Golden Sunset', bg1: '#EA580C', bg2: '#FB923C', accent1: '#FFFFFF', accent2: '#FED7AA', accent3: '#FDBA74' },
-  { name: 'Jade Garden', bg1: '#14532D', bg2: '#16A34A', accent1: '#FFFFFF', accent2: '#DCFCE7', accent3: '#4ADE80' },
-  { name: 'Autumn Leaves', bg1: '#C2410C', bg2: '#F97316', accent1: '#FFFFFF', accent2: '#FFEDD5', accent3: '#FB923C' }
-];
-
-// Extract mathematical properties from IPFS key
-const analyzeIPFSKey = (userKey) => {
-  const keyWithoutPrefix = userKey.slice(2); // Remove "Qm"
-  
-  // Convert key segments to numbers for mathematical analysis
-  const segment1 = keyWithoutPrefix.slice(0, 11);
-  const segment2 = keyWithoutPrefix.slice(11, 22);
-  const segment3 = keyWithoutPrefix.slice(22, 33);
-  const segment4 = keyWithoutPrefix.slice(33, 44);
-  
-  const hash1 = hashSegment(segment1);
-  const hash2 = hashSegment(segment2);
-  const hash3 = hashSegment(segment3);
-  const hash4 = hashSegment(segment4);
-  
-  return {
-    // Element count (3-16 elements)
-    elementCount: 3 + (hash1 % 14),
-    
-    // Geometry type (0=straight, 1=curved, 2=mixed)
-    geometryType: hash2 % 3,
-    
-    // Complexity level (0=simple, 1=medium, 2=complex)
-    complexityLevel: hash3 % 3,
-    
-    // Pattern variation (affects specific shape details)
-    patternVariation: hash4 % 8,
-    
-    // Symmetry factor (affects rotation and positioning)
-    symmetryFactor: (hash1 + hash2) % 360,
-    
-    // Size variation factor
-    sizeVariation: (hash3 + hash4) % 100 / 100,
-    
-    // Layer count for complex patterns
-    layerCount: 1 + ((hash1 + hash3) % 4)
-  };
-};
-
-const hashSegment = (segment) => {
-  let hash = 0;
-  for (let i = 0; i < segment.length; i++) {
-    hash = ((hash << 5) - hash) + segment.charCodeAt(i);
-    hash = hash & hash;
-  }
-  return Math.abs(hash);
-};
-
-// Generate mandala based on mathematical analysis of IPFS key
-const generateMandalaAvatar = (userKey, colorScheme, size = 120, showQM = false) => {
-  if (!isValidIPFSHash(userKey)) return null;
-  
-  const analysis = analyzeIPFSKey(userKey);
-  const rng = new AestheticRandom(userKey);
-  
-  const centerX = size / 2;
-  const centerY = size / 2;
-  const maxRadius = size * 0.4;
-  const elements = [];
-  
-  // Generate elements based on key analysis
-  for (let i = 0; i < analysis.elementCount; i++) {
-    const angle = (i * 360 / analysis.elementCount + analysis.symmetryFactor) * Math.PI / 180;
-    
-    // Size varies based on key properties
-    const elementSize = maxRadius * (0.6 + analysis.sizeVariation * 0.4) * (0.8 + 0.4 * Math.sin(i * 0.7));
-    
-    // Position elements
-    const elementDistance = maxRadius * (0.7 + 0.3 * Math.sin(i * 1.2));
-    const elementX = centerX + elementDistance * Math.cos(angle);
-    const elementY = centerY + elementDistance * Math.sin(angle);
-    
-    // Generate element based on geometry type and complexity
-    const element = generateElement(
-      elementX, elementY, elementSize, angle, i,
-      analysis.geometryType, 
-      analysis.complexityLevel,
-      analysis.patternVariation,
-      colorScheme,
-      analysis.elementCount
-    );
-    
-    if (element) {
-      elements.push(element);
-    }
-  }
-  
-  // Add layers for complex patterns
-  if (analysis.complexityLevel >= 1 && analysis.layerCount > 1) {
-    for (let layer = 1; layer < analysis.layerCount; layer++) {
-      const layerRadius = maxRadius * (0.4 + layer * 0.2);
-      const layerElements = Math.max(3, Math.floor(analysis.elementCount / (layer + 1)));
-      
-      for (let i = 0; i < layerElements; i++) {
-        const angle = (i * 360 / layerElements + analysis.symmetryFactor + layer * 45) * Math.PI / 180;
-        const elementX = centerX + layerRadius * Math.cos(angle);
-        const elementY = centerY + layerRadius * Math.sin(angle);
         
-        const layerElement = generateElement(
-          elementX, elementY, maxRadius * 0.15, angle, i,
-          (analysis.geometryType + layer) % 3,
-          0, // Simpler for inner layers
-          analysis.patternVariation,
-          colorScheme,
-          layerElements
+        // Simple icon components
+        const Download = ({ size = 20 }) => React.createElement('svg', {
+          width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2
+        }, 
+          React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+          React.createElement('polyline', { points: '7,10 12,15 17,10' }),
+          React.createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 })
         );
-        
-        if (layerElement) {
-          elements.push(layerElement);
-        }
-      }
-    }
-  }
-  
-  // Generate center element based on key (only if QM text is not shown)
-  if (!showQM) {
-    const centerElement = generateCenterElement(
-      centerX, centerY, maxRadius * 0.15, 
-      analysis.patternVariation, colorScheme
-    );
-    
-    if (centerElement) {
-      elements.push(centerElement);
-    }
-  }
-  
-  // Add QM text if requested
-  if (showQM) {
-    const textSize = size * 0.4; // Slightly bigger text size
-    const shadowId = `qm-shadow-${userKey.slice(-4)}`;
-    
-    elements.push(
-      <g key="qm-text-group">
-        {/* Drop shadow filter definition */}
-        <defs>
-          <filter id={shadowId} x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="4" dy="8" stdDeviation="6" floodColor="rgba(0,0,0,0.7)"/>
-          </filter>
-        </defs>
-        
-        {/* QM Text with shadow and improved styling */}
-        <text
-          x={centerX}
-          y={centerY + textSize * 0.15}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={textSize}
-          fontFamily="'Nunito', -apple-system, BlinkMacSystemFont, sans-serif"
-          fontWeight="900"
-          fill={colorScheme.accent1}
-          stroke={colorScheme.bg1}
-          strokeWidth="2.5"
-          filter={`url(#${shadowId})`}
-          opacity={1}
-          style={{ 
-            fontFeatureSettings: '"rlig" 1, "calt" 1',
-            letterSpacing: '0.1em'
-          }}
-        >
-          QM
-        </text>
-      </g>
-    );
-  }
-  
-  return createSVG(size, colorScheme, elements, userKey);
-};
 
-// Generate individual elements based on mathematical parameters
-const generateElement = (x, y, size, angle, index, geometryType, complexityLevel, variation, colorScheme, totalElements) => {
-  const key = `element-${index}-${Math.floor(x)}-${Math.floor(y)}`;
-  
-  switch (geometryType) {
-    case 0: // Straight geometry
-      return generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
-    case 1: // Curved geometry  
-      return generateCurvedElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
-    case 2: // Mixed geometry
-      return index % 2 === 0 
-        ? generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key)
-        : generateCurvedElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
-    default:
-      return generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
-  }
-};
+        const Sparkles = ({ size = 20 }) => React.createElement('svg', {
+          width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2
+        }, 
+          React.createElement('path', { d: 'm12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z' }),
+          React.createElement('path', { d: 'M5 3v4' }),
+          React.createElement('path', { d: 'M19 17v4' }),
+          React.createElement('path', { d: 'M3 5h4' }),
+          React.createElement('path', { d: 'M17 19h4' })
+        );
 
-// Generate straight-line elements
-const generateStraightElement = (x, y, size, angle, index, complexity, variation, colorScheme, key) => {
-  const color = index % 2 === 0 ? colorScheme.accent1 : colorScheme.accent2;
-  const strokeColor = colorScheme.accent3;
-  
-  switch (complexity) {
-    case 0: // Simple shapes
-      if (variation % 3 === 0) {
-        // Triangle
-        const points = [
-          `${x},${y - size/2}`,
-          `${x + size/2 * Math.cos(Math.PI/6)},${y + size/2 * Math.sin(Math.PI/6)}`,
-          `${x - size/2 * Math.cos(Math.PI/6)},${y + size/2 * Math.sin(Math.PI/6)}`
-        ];
-        return (
-          <polygon
-            key={key}
-            points={points.join(' ')}
-            fill={color}
-            stroke={strokeColor}
-            strokeWidth="2"
-            opacity={0.9}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      } else if (variation % 3 === 1) {
-        // Diamond
-        const points = [
-          `${x},${y - size/2}`,
-          `${x + size/3},${y}`,
-          `${x},${y + size/2}`,
-          `${x - size/3},${y}`
-        ];
-        return (
-          <polygon
-            key={key}
-            points={points.join(' ')}
-            fill={color}
-            stroke={strokeColor}
-            strokeWidth="2"
-            opacity={0.9}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      } else {
-        // Rectangle
-        return (
-          <rect
-            key={key}
-            x={x - size/4}
-            y={y - size/2}
-            width={size/2}
-            height={size}
-            fill={color}
-            stroke={strokeColor}
-            strokeWidth="2"
-            opacity={0.9}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      }
-      
-    case 1: // Medium complexity
-      // Star shape
-      const starPoints = [];
-      const spikes = 5 + (variation % 3);
-      for (let i = 0; i < spikes * 2; i++) {
-        const starAngle = (i * Math.PI) / spikes;
-        const radius = i % 2 === 0 ? size/2 : size/4;
-        starPoints.push(`${x + radius * Math.cos(starAngle)},${y + radius * Math.sin(starAngle)}`);
-      }
-      return (
-        <polygon
-          key={key}
-          points={starPoints.join(' ')}
-          fill={color}
-          stroke={strokeColor}
-          strokeWidth="2"
-          opacity={0.9}
-          transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-        />
-      );
-      
-    case 2: // Complex
-      // Multiple layered shapes
-      const elements = [];
-      for (let layer = 0; layer < 3; layer++) {
-        const layerSize = size * (1 - layer * 0.2);
-        const layerColor = layer === 0 ? color : strokeColor;
-        const opacity = 0.9 - layer * 0.2;
-        
-        if (variation % 2 === 0) {
-          // Layered hexagons
-          const hexPoints = [];
-          for (let i = 0; i < 6; i++) {
-            const hexAngle = (i * 60) * Math.PI / 180;
-            hexPoints.push(`${x + layerSize/2 * Math.cos(hexAngle)},${y + layerSize/2 * Math.sin(hexAngle)}`);
+        // Advanced deterministic random generator
+        class AestheticRandom {
+          constructor(seed) {
+            this.seed = this.hashString(seed);
           }
-          elements.push(
-            <polygon
-              key={`${key}-hex-${layer}`}
-              points={hexPoints.join(' ')}
-              fill={layer === 2 ? layerColor : 'none'}
-              stroke={layerColor}
-              strokeWidth="2"
-              opacity={opacity}
-              transform={`rotate(${angle * 180 / Math.PI + layer * 30} ${x} ${y})`}
-            />
+          
+          hashString(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+              hash = ((hash << 5) - hash) + str.charCodeAt(i);
+              hash = hash & hash;
+            }
+            return Math.abs(hash);
+          }
+          
+          next() {
+            this.seed = (this.seed * 9301 + 49297) % 233280;
+            return this.seed / 233280;
+          }
+          
+          range(min, max) {
+            return min + this.next() * (max - min);
+          }
+          
+          choice(array) {
+            return array[Math.floor(this.next() * array.length)];
+          }
+        }
+
+        // Validate IPFS hash format
+        const isValidIPFSHash = (key) => {
+          const base58Regex = /^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/;
+          return key.startsWith('Qm') && key.length === 46 && base58Regex.test(key);
+        };
+
+        // Beautiful, harmonious color schemes
+        const AESTHETIC_SCHEMES = [
+          { name: 'Emerald Forest', bg1: '#064E3B', bg2: '#059669', accent1: '#FFFFFF', accent2: '#D1FAE5', accent3: '#6EE7B7' },
+          { name: 'Deep Ocean', bg1: '#1E3A8A', bg2: '#3B82F6', accent1: '#FFFFFF', accent2: '#DBEAFE', accent3: '#93C5FD' },
+          { name: 'Sapphire', bg1: '#1E40AF', bg2: '#2563EB', accent1: '#FFFFFF', accent2: '#DBEAFE', accent3: '#60A5FA' },
+          { name: 'Cosmic Nebula', bg1: '#581C87', bg2: '#A855F7', accent1: '#FFFFFF', accent2: '#F3E8FF', accent3: '#C084FC' },
+          { name: 'Galaxy', bg1: '#4C1D95', bg2: '#7C3AED', accent1: '#FFFFFF', accent2: '#EDE9FE', accent3: '#A78BFA' },
+          { name: 'Coral Reef', bg1: '#0F766E', bg2: '#14B8A6', accent1: '#FFFFFF', accent2: '#CCFBF1', accent3: '#5EEAD4' },
+          { name: 'Monochrome', bg1: '#111827', bg2: '#6B7280', accent1: '#FFFFFF', accent2: '#F3F4F6', accent3: '#D1D5DB' },
+          { name: 'Crimson Fire', bg1: '#7F1D1D', bg2: '#DC2626', accent1: '#FFFFFF', accent2: '#FEE2E2', accent3: '#F87171' },
+          { name: 'Rose Gold', bg1: '#BE185D', bg2: '#EC4899', accent1: '#FFFFFF', accent2: '#FCE7F3', accent3: '#F472B6' },
+          { name: 'Golden Sunset', bg1: '#EA580C', bg2: '#FB923C', accent1: '#FFFFFF', accent2: '#FED7AA', accent3: '#FDBA74' },
+          { name: 'Jade Garden', bg1: '#14532D', bg2: '#16A34A', accent1: '#FFFFFF', accent2: '#DCFCE7', accent3: '#4ADE80' },
+          { name: 'Autumn Leaves', bg1: '#C2410C', bg2: '#F97316', accent1: '#FFFFFF', accent2: '#FFEDD5', accent3: '#FB923C' }
+        ];
+
+        // Extract mathematical properties from IPFS key
+        const analyzeIPFSKey = (userKey) => {
+          const keyWithoutPrefix = userKey.slice(2); // Remove "Qm"
+          
+          // Convert key segments to numbers for mathematical analysis
+          const segment1 = keyWithoutPrefix.slice(0, 11);
+          const segment2 = keyWithoutPrefix.slice(11, 22);
+          const segment3 = keyWithoutPrefix.slice(22, 33);
+          const segment4 = keyWithoutPrefix.slice(33, 44);
+          
+          const hash1 = hashSegment(segment1);
+          const hash2 = hashSegment(segment2);
+          const hash3 = hashSegment(segment3);
+          const hash4 = hashSegment(segment4);
+          
+          return {
+            // Element count (3-16 elements)
+            elementCount: 3 + (hash1 % 14),
+            
+            // Geometry type (0=straight, 1=curved, 2=mixed)
+            geometryType: hash2 % 3,
+            
+            // Complexity level (0=simple, 1=medium, 2=complex)
+            complexityLevel: hash3 % 3,
+            
+            // Pattern variation (affects specific shape details)
+            patternVariation: hash4 % 8,
+            
+            // Symmetry factor (affects rotation and positioning)
+            symmetryFactor: (hash1 + hash2) % 360,
+            
+            // Size variation factor
+            sizeVariation: (hash3 + hash4) % 100 / 100,
+            
+            // Layer count for complex patterns
+            layerCount: 1 + ((hash1 + hash3) % 4)
+          };
+        };
+
+        const hashSegment = (segment) => {
+          let hash = 0;
+          for (let i = 0; i < segment.length; i++) {
+            hash = ((hash << 5) - hash) + segment.charCodeAt(i);
+            hash = hash & hash;
+          }
+          return Math.abs(hash);
+        };
+
+        // Helper function to create SVG with consistent styling
+        const createSVG = (size, colorScheme, elements, userKey) => {
+          const gradientId = `mandala-grad-${userKey.slice(-8)}-${colorScheme.name.replace(/\s+/g, '')}`;
+          
+          return React.createElement('svg', {
+            width: size,
+            height: size,
+            viewBox: `0 0 ${size} ${size}`,
+            className: "rounded-full"
+          },
+            React.createElement('defs', {},
+              React.createElement('radialGradient', {
+                id: gradientId,
+                cx: "50%",
+                cy: "50%",
+                r: "50%"
+              },
+                React.createElement('stop', { offset: "0%", stopColor: colorScheme.bg1 }),
+                React.createElement('stop', { offset: "100%", stopColor: colorScheme.bg2 })
+              )
+            ),
+            React.createElement('circle', {
+              cx: size/2,
+              cy: size/2,
+              r: size/2,
+              fill: `url(#${gradientId})`
+            }),
+            ...elements
           );
-        } else {
-          // Layered squares
-          elements.push(
-            <rect
-              key={`${key}-rect-${layer}`}
-              x={x - layerSize/4}
-              y={y - layerSize/4}
-              width={layerSize/2}
-              height={layerSize/2}
-              fill={layer === 2 ? layerColor : 'none'}
-              stroke={layerColor}
-              strokeWidth="2"
-              opacity={opacity}
-              transform={`rotate(${angle * 180 / Math.PI + layer * 45} ${x} ${y})`}
-            />
+        };
+
+        // Generate complex mandala based on mathematical analysis of IPFS key
+        const generateMandalaAvatar = (userKey, colorScheme, size = 120, showQM = false) => {
+          if (!isValidIPFSHash(userKey)) return null;
+          
+          const analysis = analyzeIPFSKey(userKey);
+          const rng = new AestheticRandom(userKey);
+          
+          const centerX = size / 2;
+          const centerY = size / 2;
+          const maxRadius = size * 0.4;
+          const elements = [];
+          
+          // Generate elements based on key analysis
+          for (let i = 0; i < analysis.elementCount; i++) {
+            const angle = (i * 360 / analysis.elementCount + analysis.symmetryFactor) * Math.PI / 180;
+            
+            // Size varies based on key properties
+            const elementSize = maxRadius * (0.6 + analysis.sizeVariation * 0.4) * (0.8 + 0.4 * Math.sin(i * 0.7));
+            
+            // Position elements
+            const elementDistance = maxRadius * (0.7 + 0.3 * Math.sin(i * 1.2));
+            const elementX = centerX + elementDistance * Math.cos(angle);
+            const elementY = centerY + elementDistance * Math.sin(angle);
+            
+            // Generate element based on geometry type and complexity
+            const element = generateElement(
+              elementX, elementY, elementSize, angle, i,
+              analysis.geometryType, 
+              analysis.complexityLevel,
+              analysis.patternVariation,
+              colorScheme,
+              analysis.elementCount
+            );
+            
+            if (element) {
+              elements.push(element);
+            }
+          }
+          
+          // Add layers for complex patterns
+          if (analysis.complexityLevel >= 1 && analysis.layerCount > 1) {
+            for (let layer = 1; layer < analysis.layerCount; layer++) {
+              const layerRadius = maxRadius * (0.4 + layer * 0.2);
+              const layerElements = Math.max(3, Math.floor(analysis.elementCount / (layer + 1)));
+              
+              for (let i = 0; i < layerElements; i++) {
+                const angle = (i * 360 / layerElements + analysis.symmetryFactor + layer * 45) * Math.PI / 180;
+                const elementX = centerX + layerRadius * Math.cos(angle);
+                const elementY = centerY + layerRadius * Math.sin(angle);
+                
+                const layerElement = generateElement(
+                  elementX, elementY, maxRadius * 0.15, angle, i,
+                  (analysis.geometryType + layer) % 3,
+                  0, // Simpler for inner layers
+                  analysis.patternVariation,
+                  colorScheme,
+                  layerElements
+                );
+                
+                if (layerElement) {
+                  elements.push(layerElement);
+                }
+              }
+            }
+          }
+          
+          // Generate center element based on key (only if QM text is not shown)
+          if (!showQM) {
+            const centerElement = generateCenterElement(
+              centerX, centerY, maxRadius * 0.15, 
+              analysis.patternVariation, colorScheme
+            );
+            
+            if (centerElement) {
+              elements.push(centerElement);
+            }
+          }
+          
+          // Add QM text if requested
+          if (showQM) {
+            const textSize = size * 0.4;
+            const shadowId = `qm-shadow-${userKey.slice(-4)}`;
+            
+            elements.push(
+              React.createElement('g', { key: "qm-text-group" },
+                React.createElement('defs', {},
+                  React.createElement('filter', {
+                    id: shadowId,
+                    x: "-50%",
+                    y: "-50%",
+                    width: "200%",
+                    height: "200%"
+                  },
+                    React.createElement('feDropShadow', {
+                      dx: "4",
+                      dy: "8",
+                      stdDeviation: "6",
+                      floodColor: "rgba(0,0,0,0.7)"
+                    })
+                  )
+                ),
+                React.createElement('text', {
+                  x: centerX,
+                  y: centerY + textSize * 0.15,
+                  textAnchor: "middle",
+                  dominantBaseline: "middle",
+                  fontSize: textSize,
+                  fontFamily: "'Nunito', -apple-system, BlinkMacSystemFont, sans-serif",
+                  fontWeight: "900",
+                  fill: colorScheme.accent1,
+                  stroke: colorScheme.bg1,
+                  strokeWidth: "2.5",
+                  filter: `url(#${shadowId})`,
+                  opacity: 1,
+                  style: { 
+                    fontFeatureSettings: '"rlig" 1, "calt" 1',
+                    letterSpacing: '0.1em'
+                  }
+                }, "QM")
+              )
+            );
+          }
+          
+          return createSVG(size, colorScheme, elements, userKey);
+        };
+
+        // Generate individual elements based on mathematical parameters
+        const generateElement = (x, y, size, angle, index, geometryType, complexityLevel, variation, colorScheme, totalElements) => {
+          const key = `element-${index}-${Math.floor(x)}-${Math.floor(y)}`;
+          
+          switch (geometryType) {
+            case 0: // Straight geometry
+              return generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
+            case 1: // Curved geometry  
+              return generateCurvedElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
+            case 2: // Mixed geometry
+              return index % 2 === 0 
+                ? generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key)
+                : generateCurvedElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
+            default:
+              return generateStraightElement(x, y, size, angle, index, complexityLevel, variation, colorScheme, key);
+          }
+        };
+
+        // Generate straight-line elements
+        const generateStraightElement = (x, y, size, angle, index, complexity, variation, colorScheme, key) => {
+          const color = index % 2 === 0 ? colorScheme.accent1 : colorScheme.accent2;
+          const strokeColor = colorScheme.accent3;
+          
+          switch (complexity) {
+            case 0: // Simple shapes
+              if (variation % 3 === 0) {
+                // Triangle
+                const points = [
+                  `${x},${y - size/2}`,
+                  `${x + size/2 * Math.cos(Math.PI/6)},${y + size/2 * Math.sin(Math.PI/6)}`,
+                  `${x - size/2 * Math.cos(Math.PI/6)},${y + size/2 * Math.sin(Math.PI/6)}`
+                ];
+                return React.createElement('polygon', {
+                  key: key,
+                  points: points.join(' '),
+                  fill: color,
+                  stroke: strokeColor,
+                  strokeWidth: "2",
+                  opacity: 0.9,
+                  transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                });
+              } else if (variation % 3 === 1) {
+                // Diamond
+                const points = [
+                  `${x},${y - size/2}`,
+                  `${x + size/3},${y}`,
+                  `${x},${y + size/2}`,
+                  `${x - size/3},${y}`
+                ];
+                return React.createElement('polygon', {
+                  key: key,
+                  points: points.join(' '),
+                  fill: color,
+                  stroke: strokeColor,
+                  strokeWidth: "2",
+                  opacity: 0.9,
+                  transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                });
+              } else {
+                // Rectangle
+                return React.createElement('rect', {
+                  key: key,
+                  x: x - size/4,
+                  y: y - size/2,
+                  width: size/2,
+                  height: size,
+                  fill: color,
+                  stroke: strokeColor,
+                  strokeWidth: "2",
+                  opacity: 0.9,
+                  transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                });
+              }
+              
+            case 1: // Medium complexity
+              // Star shape
+              const starPoints = [];
+              const spikes = 5 + (variation % 3);
+              for (let i = 0; i < spikes * 2; i++) {
+                const starAngle = (i * Math.PI) / spikes;
+                const radius = i % 2 === 0 ? size/2 : size/4;
+                starPoints.push(`${x + radius * Math.cos(starAngle)},${y + radius * Math.sin(starAngle)}`);
+              }
+              return React.createElement('polygon', {
+                key: key,
+                points: starPoints.join(' '),
+                fill: color,
+                stroke: strokeColor,
+                strokeWidth: "2",
+                opacity: 0.9,
+                transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+              });
+              
+            case 2: // Complex
+              // Multiple layered shapes
+              const elements = [];
+              for (let layer = 0; layer < 3; layer++) {
+                const layerSize = size * (1 - layer * 0.2);
+                const layerColor = layer === 0 ? color : strokeColor;
+                const opacity = 0.9 - layer * 0.2;
+                
+                if (variation % 2 === 0) {
+                  // Layered hexagons
+                  const hexPoints = [];
+                  for (let i = 0; i < 6; i++) {
+                    const hexAngle = (i * 60) * Math.PI / 180;
+                    hexPoints.push(`${x + layerSize/2 * Math.cos(hexAngle)},${y + layerSize/2 * Math.sin(hexAngle)}`);
+                  }
+                  elements.push(
+                    React.createElement('polygon', {
+                      key: `${key}-hex-${layer}`,
+                      points: hexPoints.join(' '),
+                      fill: layer === 2 ? layerColor : 'none',
+                      stroke: layerColor,
+                      strokeWidth: "2",
+                      opacity: opacity,
+                      transform: `rotate(${angle * 180 / Math.PI + layer * 30} ${x} ${y})`
+                    })
+                  );
+                } else {
+                  // Layered squares
+                  elements.push(
+                    React.createElement('rect', {
+                      key: `${key}-rect-${layer}`,
+                      x: x - layerSize/4,
+                      y: y - layerSize/4,
+                      width: layerSize/2,
+                      height: layerSize/2,
+                      fill: layer === 2 ? layerColor : 'none',
+                      stroke: layerColor,
+                      strokeWidth: "2",
+                      opacity: opacity,
+                      transform: `rotate(${angle * 180 / Math.PI + layer * 45} ${x} ${y})`
+                    })
+                  );
+                }
+              }
+              return React.createElement('g', { key: key }, ...elements);
+              
+            default:
+              return null;
+          }
+        };
+
+        // Generate curved elements
+        const generateCurvedElement = (x, y, size, angle, index, complexity, variation, colorScheme, key) => {
+          const color = index % 2 === 0 ? colorScheme.accent1 : colorScheme.accent2;
+          const strokeColor = colorScheme.accent3;
+          
+          switch (complexity) {
+            case 0: // Simple curves
+              if (variation % 2 === 0) {
+                // Simple petal
+                const petalPath = `M${x},${y} Q${x + size/3},${y - size/2} ${x + size/2},${y} Q${x + size/3},${y + size/2} ${x},${y}Z`;
+                return React.createElement('path', {
+                  key: key,
+                  d: petalPath,
+                  fill: color,
+                  stroke: strokeColor,
+                  strokeWidth: "2",
+                  opacity: 0.9,
+                  transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                });
+              } else {
+                // Leaf shape
+                const leafPath = `M${x},${y} Q${x - size/4},${y - size/2} ${x},${y - size} Q${x + size/4},${y - size/2} ${x},${y}Z`;
+                return React.createElement('path', {
+                  key: key,
+                  d: leafPath,
+                  fill: color,
+                  stroke: strokeColor,
+                  strokeWidth: "2",
+                  opacity: 0.9,
+                  transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                });
+              }
+              
+            case 1: // Medium curves
+              // Heart-like shape
+              const heartPath = `M${x},${y} Q${x - size/4},${y - size/3} ${x - size/2},${y - size/6} Q${x - size/2},${y + size/6} ${x},${y + size/2} Q${x + size/2},${y + size/6} ${x + size/2},${y - size/6} Q${x + size/4},${y - size/3} ${x},${y}Z`;
+              return React.createElement('path', {
+                key: key,
+                d: heartPath,
+                fill: color,
+                stroke: strokeColor,
+                strokeWidth: "2",
+                opacity: 0.9,
+                transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+              });
+              
+            case 2: // Complex curves
+              // Multi-curve flower
+              const curves = [];
+              const petalCount = 3 + (variation % 4);
+              for (let p = 0; p < petalCount; p++) {
+                const petalAngle = (p * 360 / petalCount) * Math.PI / 180;
+                const petalPath = `M${x},${y} Q${x + size/3 * Math.cos(petalAngle + 0.5)},${y + size/3 * Math.sin(petalAngle + 0.5)} ${x + size/2 * Math.cos(petalAngle)},${y + size/2 * Math.sin(petalAngle)} Q${x + size/3 * Math.cos(petalAngle - 0.5)},${y + size/3 * Math.sin(petalAngle - 0.5)} ${x},${y}`;
+                curves.push(
+                  React.createElement('path', {
+                    key: `${key}-petal-${p}`,
+                    d: petalPath,
+                    fill: p % 2 === 0 ? color : strokeColor,
+                    stroke: strokeColor,
+                    strokeWidth: "1",
+                    opacity: 0.8,
+                    transform: `rotate(${angle * 180 / Math.PI} ${x} ${y})`
+                  })
+                );
+              }
+              return React.createElement('g', { key: key }, ...curves);
+              
+            default:
+              return null;
+          }
+        };
+
+        // Generate center element
+        const generateCenterElement = (x, y, size, variation, colorScheme) => {
+          switch (variation % 4) {
+            case 0:
+              return React.createElement('circle', {
+                key: "center",
+                cx: x,
+                cy: y,
+                r: size,
+                fill: colorScheme.accent3,
+                stroke: colorScheme.accent1,
+                strokeWidth: "3",
+                opacity: 1
+              });
+              
+            case 1:
+              const starPoints = [];
+              for (let i = 0; i < 8; i++) {
+                const angle = (i * 45) * Math.PI / 180;
+                const radius = i % 2 === 0 ? size : size * 0.5;
+                starPoints.push(`${x + radius * Math.cos(angle)},${y + radius * Math.sin(angle)}`);
+              }
+              return React.createElement('polygon', {
+                key: "center",
+                points: starPoints.join(' '),
+                fill: colorScheme.accent3,
+                stroke: colorScheme.accent1,
+                strokeWidth: "2",
+                opacity: 1
+              });
+              
+            case 2:
+              const hexPoints = [];
+              for (let i = 0; i < 6; i++) {
+                const angle = (i * 60) * Math.PI / 180;
+                hexPoints.push(`${x + size * Math.cos(angle)},${y + size * Math.sin(angle)}`);
+              }
+              return React.createElement('polygon', {
+                key: "center",
+                points: hexPoints.join(' '),
+                fill: colorScheme.accent3,
+                stroke: colorScheme.accent1,
+                strokeWidth: "2",
+                opacity: 1
+              });
+              
+            case 3:
+              return React.createElement('g', { key: "center" },
+                React.createElement('circle', {
+                  cx: x,
+                  cy: y,
+                  r: size,
+                  fill: "none",
+                  stroke: colorScheme.accent1,
+                  strokeWidth: "3",
+                  opacity: 1
+                }),
+                React.createElement('circle', {
+                  cx: x,
+                  cy: y,
+                  r: size * 0.5,
+                  fill: colorScheme.accent3,
+                  opacity: 1
+                })
+              );
+              
+            default:
+              return null;
+          }
+        };
+
+        // Generate description based on key analysis
+        const getMandalaDescription = (userKey) => {
+          if (!isValidIPFSHash(userKey)) return "Enter a valid IPFS key";
+          
+          const analysis = analyzeIPFSKey(userKey);
+          const geometryTypes = ["Geometric", "Curved", "Mixed"];
+          const complexityLevels = ["Simple", "Detailed", "Complex"];
+          
+          return `${analysis.elementCount} ${geometryTypes[analysis.geometryType]} ${complexityLevels[analysis.complexityLevel]} Elements`;
+        };
+
+        function AvatarCreator() {
+          const [userKey, setUserKey] = useState("");
+          const [selectedColorScheme, setSelectedColorScheme] = useState(0);
+          const [showQM, setShowQM] = useState(false);
+          const [downloadSVG, setDownloadSVG] = useState(false);
+
+          // Update color scheme when key changes
+          useEffect(() => {
+            if (isValidIPFSHash(userKey)) {
+              const keyHash = hashSegment(userKey.slice(2, 13));
+              const defaultSchemeIndex = keyHash % AESTHETIC_SCHEMES.length;
+              setSelectedColorScheme(defaultSchemeIndex);
+            }
+          }, [userKey]);
+
+          const exportAvatar = async () => {
+            if (!isValidIPFSHash(userKey)) return;
+            
+            try {
+              const svgElement = document.querySelector('.lg\\:col-span-1 svg');
+              if (!svgElement) {
+                alert('Could not find mandala to export');
+                return;
+              }
+
+              const svgData = svgElement.outerHTML
+                .replace(/width="\d+"/, 'width="500"')
+                .replace(/height="\d+"/, 'height="500"');
+
+              if (downloadSVG) {
+                await navigator.clipboard.writeText(svgData);
+                alert('SVG copied to clipboard! Paste into a text editor and save as .svg file.');
+              } else {
+                alert('PNG export will be available in the next update. For now, try SVG export.');
+              }
+              
+            } catch (error) {
+              console.error('Export failed:', error);
+              alert('Export failed. Please try again.');
+            }
+          };
+
+          const isValidKey = isValidIPFSHash(userKey);
+          const selectedScheme = AESTHETIC_SCHEMES[selectedColorScheme];
+
+          return React.createElement('div', {
+            className: "max-w-5xl mx-auto p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen"
+          },
+            React.createElement('div', {
+              className: "text-center mb-8"
+            },
+              React.createElement('h1', {
+                className: "text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2 flex items-center justify-center gap-3"
+              },
+                React.createElement(Sparkles, { className: "text-purple-600" }),
+                "Quorum Mandala Generator"
+              ),
+              React.createElement('p', {
+                className: "text-gray-600 text-lg"
+              }, "Create unique sacred mandalas from your Quorum user key"),
+              React.createElement('div', {
+                className: "mt-6 bg-white rounded-2xl p-6 shadow-lg border border-white/20"
+              },
+                React.createElement('p', {
+                  className: "text-sm text-gray-500 mb-3"
+                }, "Enter Your Quorum Key (must start with 'Qm' and be 46 characters):"),
+                React.createElement('input', {
+                  type: "text",
+                  value: userKey,
+                  onChange: (e) => setUserKey(e.target.value),
+                  placeholder: "QmX7R9K2mPqWvYzN3jL8tE6FpA4sQ1cV5bM9xH2uD8wG3",
+                  className: `w-full text-base bg-gray-50 px-4 py-3 rounded-xl font-mono border-2 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all ${
+                    userKey && !isValidKey 
+                      ? 'border-red-400 focus:border-red-500' 
+                      : userKey && isValidKey
+                      ? 'border-green-400 focus:border-green-500'
+                      : 'border-gray-200 focus:border-purple-400'
+                  }`
+                }),
+                userKey && !isValidKey && React.createElement('p', {
+                  className: "text-red-500 text-sm mt-2"
+                }, "Invalid IPFS key format. Must start with 'Qm' and be exactly 46 characters."),
+                React.createElement('div', {
+                  className: "mt-4 flex items-center gap-3"
+                },
+                  React.createElement('input', {
+                    type: "checkbox",
+                    id: "showQM",
+                    checked: showQM,
+                    onChange: (e) => setShowQM(e.target.checked),
+                    className: "w-5 h-5"
+                  }),
+                  React.createElement('label', {
+                    htmlFor: "showQM",
+                    className: "text-sm text-gray-700 font-medium cursor-pointer"
+                  }, 'Add "QM"')
+                )
+              )
+            ),
+            React.createElement('div', {
+              className: "grid grid-cols-1 lg:grid-cols-3 gap-8"
+            },
+              React.createElement('div', {
+                className: "lg:col-span-1"
+              },
+                React.createElement('div', {
+                  className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
+                },
+                  React.createElement('h3', {
+                    className: "text-xl font-semibold mb-6 text-center text-gray-800"
+                  }, "Your Quorum Mandala"),
+                  React.createElement('div', {
+                    className: "flex justify-center mb-6"
+                  },
+                    isValidKey ? React.createElement('div', {
+                      className: "relative"
+                    },
+                      generateMandalaAvatar(userKey, selectedScheme, 240, showQM),
+                      React.createElement('div', {
+                        className: "absolute inset-0 rounded-full bg-gradient-to-t from-black/5 to-transparent"
+                      })
+                    ) : React.createElement('div', {
+                      className: "w-60 h-60 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner"
+                    },
+                      React.createElement(Sparkles, { size: 48, className: "text-gray-400" })
+                    )
+                  ),
+                  React.createElement('button', {
+                    onClick: exportAvatar,
+                    disabled: !isValidKey,
+                    className: "w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-4 rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
+                  },
+                    React.createElement(Download, { size: 20 }),
+                    "Download Quorum Mandala"
+                  ),
+                  React.createElement('div', {
+                    className: "mt-4 flex items-center gap-3"
+                  },
+                    React.createElement('input', {
+                      type: "checkbox",
+                      id: "downloadSVG",
+                      checked: downloadSVG,
+                      onChange: (e) => setDownloadSVG(e.target.checked),
+                      className: "w-5 h-5"
+                    }),
+                    React.createElement('label', {
+                      htmlFor: "downloadSVG",
+                      className: "text-sm text-gray-700 font-medium cursor-pointer"
+                    }, "Download as SVG (instead of PNG)")
+                  ),
+                  isValidKey && React.createElement('div', {
+                    className: "space-y-3 text-sm bg-gray-50 rounded-xl p-4 mt-6"
+                  },
+                    React.createElement('div', {
+                      className: "flex justify-between"
+                    },
+                      React.createElement('span', {
+                        className: "text-gray-600"
+                      }, "Color Scheme:"),
+                      React.createElement('span', {
+                        className: "font-medium text-gray-800"
+                      }, selectedScheme.name)
+                    ),
+                    React.createElement('div', {
+                      className: "flex justify-between"
+                    },
+                      React.createElement('span', {
+                        className: "text-gray-600"
+                      }, "Pattern:"),
+                      React.createElement('span', {
+                        className: "font-medium text-gray-800"
+                      }, getMandalaDescription(userKey))
+                    ),
+                    React.createElement('div', {
+                      className: "flex justify-between"
+                    },
+                      React.createElement('span', {
+                        className: "text-gray-600"
+                      }, "Source:"),
+                      React.createElement('span', {
+                        className: "font-medium text-gray-800 font-mono text-xs"
+                      }, userKey.slice(0, 8) + "...")
+                    )
+                  )
+                )
+              ),
+              React.createElement('div', {
+                className: "lg:col-span-2"
+              },
+                isValidKey ? React.createElement('div', {
+                  className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
+                },
+                  React.createElement('div', {
+                    className: "mb-6"
+                  },
+                    React.createElement('h3', {
+                      className: "text-lg font-semibold text-gray-800"
+                    }, "Choose Your Color Scheme"),
+                    React.createElement('p', {
+                      className: "text-sm text-gray-600 mt-1"
+                    }, "The mandala pattern is determined by your Quorum key - only colors change")
+                  ),
+                  React.createElement('div', {
+                    className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+                  },
+                    AESTHETIC_SCHEMES.map((scheme, index) =>
+                      React.createElement('button', {
+                        key: `color-${index}`,
+                        onClick: () => setSelectedColorScheme(index),
+                        className: `p-3 rounded-xl border-2 transition-all transform hover:scale-105 hover:shadow-lg ${
+                          selectedColorScheme === index
+                            ? 'border-purple-400 bg-purple-50 shadow-lg scale-105'
+                            : 'border-gray-200 hover:border-gray-300 bg-white'
+                        }`
+                      },
+                        React.createElement('div', {
+                          className: "flex justify-center mb-2"
+                        },
+                          generateMandalaAvatar(userKey, scheme, 80, showQM)
+                        ),
+                        React.createElement('p', {
+                          className: "text-xs font-medium text-gray-700 text-center"
+                        }, scheme.name)
+                      )
+                    )
+                  ),
+                  React.createElement('div', {
+                    className: "mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-100"
+                  },
+                    React.createElement('p', {
+                      className: "text-sm text-blue-800"
+                    }, "🔮 Mathematical Generation: Your Quorum IPFS key is analyzed to determine element count (3-16), geometry type (straight/curved/mixed), complexity level, and positioning. Each unique key creates a different mandala structure.")
+                  )
+                ) : null
+              )
+            )
           );
         }
-      }
-      return <g key={key}>{elements}</g>;
-      
-    default:
-      return null;
-  }
-};
-
-// Generate curved elements
-const generateCurvedElement = (x, y, size, angle, index, complexity, variation, colorScheme, key) => {
-  const color = index % 2 === 0 ? colorScheme.accent1 : colorScheme.accent2;
-  const strokeColor = colorScheme.accent3;
-  
-  switch (complexity) {
-    case 0: // Simple curves
-      if (variation % 2 === 0) {
-        // Simple petal
-        const petalPath = `M${x},${y} Q${x + size/3},${y - size/2} ${x + size/2},${y} Q${x + size/3},${y + size/2} ${x},${y}Z`;
-        return (
-          <path
-            key={key}
-            d={petalPath}
-            fill={color}
-            stroke={strokeColor}
-            strokeWidth="2"
-            opacity={0.9}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      } else {
-        // Leaf shape
-        const leafPath = `M${x},${y} Q${x - size/4},${y - size/2} ${x},${y - size} Q${x + size/4},${y - size/2} ${x},${y}Z`;
-        return (
-          <path
-            key={key}
-            d={leafPath}
-            fill={color}
-            stroke={strokeColor}
-            strokeWidth="2"
-            opacity={0.9}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      }
-      
-    case 1: // Medium curves
-      // Heart-like shape
-      const heartPath = `M${x},${y} Q${x - size/4},${y - size/3} ${x - size/2},${y - size/6} Q${x - size/2},${y + size/6} ${x},${y + size/2} Q${x + size/2},${y + size/6} ${x + size/2},${y - size/6} Q${x + size/4},${y - size/3} ${x},${y}Z`;
-      return (
-        <path
-          key={key}
-          d={heartPath}
-          fill={color}
-          stroke={strokeColor}
-          strokeWidth="2"
-          opacity={0.9}
-          transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-        />
-      );
-      
-    case 2: // Complex curves
-      // Multi-curve flower
-      const curves = [];
-      const petalCount = 3 + (variation % 4);
-      for (let p = 0; p < petalCount; p++) {
-        const petalAngle = (p * 360 / petalCount) * Math.PI / 180;
-        const petalPath = `M${x},${y} Q${x + size/3 * Math.cos(petalAngle + 0.5)},${y + size/3 * Math.sin(petalAngle + 0.5)} ${x + size/2 * Math.cos(petalAngle)},${y + size/2 * Math.sin(petalAngle)} Q${x + size/3 * Math.cos(petalAngle - 0.5)},${y + size/3 * Math.sin(petalAngle - 0.5)} ${x},${y}`;
-        curves.push(
-          <path
-            key={`${key}-petal-${p}`}
-            d={petalPath}
-            fill={p % 2 === 0 ? color : strokeColor}
-            stroke={strokeColor}
-            strokeWidth="1"
-            opacity={0.8}
-            transform={`rotate(${angle * 180 / Math.PI} ${x} ${y})`}
-          />
-        );
-      }
-      return <g key={key}>{curves}</g>;
-      
-    default:
-      return null;
-  }
-};
-
-// Generate center element
-const generateCenterElement = (x, y, size, variation, colorScheme) => {
-  switch (variation % 4) {
-    case 0:
-      return (
-        <circle
-          key="center"
-          cx={x}
-          cy={y}
-          r={size}
-          fill={colorScheme.accent3}
-          stroke={colorScheme.accent1}
-          strokeWidth="3"
-          opacity={1}
-        />
-      );
-      
-    case 1:
-      const starPoints = [];
-      for (let i = 0; i < 8; i++) {
-        const angle = (i * 45) * Math.PI / 180;
-        const radius = i % 2 === 0 ? size : size * 0.5;
-        starPoints.push(`${x + radius * Math.cos(angle)},${y + radius * Math.sin(angle)}`);
-      }
-      return (
-        <polygon
-          key="center"
-          points={starPoints.join(' ')}
-          fill={colorScheme.accent3}
-          stroke={colorScheme.accent1}
-          strokeWidth="2"
-          opacity={1}
-        />
-      );
-      
-    case 2:
-      const hexPoints = [];
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * 60) * Math.PI / 180;
-        hexPoints.push(`${x + size * Math.cos(angle)},${y + size * Math.sin(angle)}`);
-      }
-      return (
-        <polygon
-          key="center"
-          points={hexPoints.join(' ')}
-          fill={colorScheme.accent3}
-          stroke={colorScheme.accent1}
-          strokeWidth="2"
-          opacity={1}
-        />
-      );
-      
-    case 3:
-      return (
-        <g key="center">
-          <circle
-            cx={x}
-            cy={y}
-            r={size}
-            fill="none"
-            stroke={colorScheme.accent1}
-            strokeWidth="3"
-            opacity={1}
-          />
-          <circle
-            cx={x}
-            cy={y}
-            r={size * 0.5}
-            fill={colorScheme.accent3}
-            opacity={1}
-          />
-        </g>
-      );
-      
-    default:
-      return null;
-  }
-};
-
-// Helper function to create SVG with consistent styling
-const createSVG = (size, colorScheme, elements, userKey) => {
-  const gradientId = `mandala-grad-${userKey.slice(-8)}-${colorScheme.name.replace(/\s+/g, '')}`;
-  
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="rounded-full">
-      <defs>
-        <radialGradient id={gradientId} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={colorScheme.bg1} />
-          <stop offset="100%" stopColor={colorScheme.bg2} />
-        </radialGradient>
-      </defs>
-      
-      <circle 
-        cx={size/2} 
-        cy={size/2} 
-        r={size/2} 
-        fill={`url(#${gradientId})`}
-      />
-      
-      {elements}
-    </svg>
-  );
-};
-
-// Generate description based on key analysis
-const getMandalaDescription = (userKey) => {
-  if (!isValidIPFSHash(userKey)) return "Enter a valid IPFS key";
-  
-  const analysis = analyzeIPFSKey(userKey);
-  
-  const geometryTypes = ["Geometric", "Curved", "Mixed"];
-  const complexityLevels = ["Simple", "Detailed", "Complex"];
-  
-  return `${analysis.elementCount} ${geometryTypes[analysis.geometryType]} ${complexityLevels[analysis.complexityLevel]} Elements`;
-};
-
-function AvatarCreator() {
-  const [userKey, setUserKey] = useState("");
-  const [selectedColorScheme, setSelectedColorScheme] = useState(0);
-  const [showQM, setShowQM] = useState(false);
-  const [downloadSVG, setDownloadSVG] = useState(false);
-
-  // Load Google Font
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    
-    return () => {
-      document.head.removeChild(link);
-    };
-  }, []);
-
-  // Update color scheme when key changes
-  useEffect(() => {
-    if (isValidIPFSHash(userKey)) {
-      // Use the key to deterministically select a starting color scheme
-      const keyHash = hashSegment(userKey.slice(2, 13));
-      const defaultSchemeIndex = keyHash % AESTHETIC_SCHEMES.length;
-      setSelectedColorScheme(defaultSchemeIndex);
-    }
-  }, [userKey]);
-
-  const exportAvatar = async () => {
-    if (!isValidIPFSHash(userKey)) return;
-    
-    try {
-      // Find the main mandala SVG
-      const svgElement = document.querySelector('.lg\\:col-span-1 svg');
-      if (!svgElement) {
-        alert('Could not find mandala to export');
-        return;
-      }
-
-      // Get clean SVG data
-      const svgData = svgElement.outerHTML
-        .replace(/width="\d+"/, 'width="500"')
-        .replace(/height="\d+"/, 'height="500"');
-
-      if (downloadSVG) {
-        // SVG Export - copy to clipboard with instructions
-        await navigator.clipboard.writeText(svgData);
-        showExportModal('SVG', svgData);
-      } else {
-        // PNG Export - show canvas modal for user to right-click save
-        createPNGModal(svgData);
-      }
-      
-    } catch (error) {
-      console.error('Export failed:', error);
-      alert('Export failed. Please try again.');
-    }
-  };
-
-  const showExportModal = (type, data) => {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
-      align-items: center; justify-content: center; font-family: system-ui;
-    `;
-    
-    modal.innerHTML = `
-      <div style="
-        background: white; padding: 30px; border-radius: 15px; 
-        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
-      ">
-        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">✅ ${type} Ready!</h3>
-        <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-          Your mandala ${type} has been copied to your clipboard.
-        </p>
-        <div style="
-          background: #f8f9fa; padding: 15px; border-radius: 8px; 
-          margin: 0 0 20px 0; text-align: left; font-size: 14px;
-        ">
-          <strong>To save as ${type.toLowerCase()} file:</strong><br>
-          1. Open any text editor (Notepad, VS Code, etc.)<br>
-          2. Paste (Ctrl+V / Cmd+V)<br>
-          3. Save as "quorum-mandala.${type.toLowerCase()}"
-        </div>
-        <button onclick="this.closest('div').parentElement.remove()" style="
-          background: #7C3AED; color: white; border: none; padding: 12px 24px;
-          border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
-        ">Got it!</button>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    // Click outside to close
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
-    });
-  };
-
-  const createPNGModal = (svgData) => {
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
-      align-items: center; justify-content: center; font-family: system-ui;
-    `;
-    
-    const canvas = document.createElement('canvas');
-    canvas.width = 500;
-    canvas.height = 500;
-    const ctx = canvas.getContext('2d');
-    
-    const img = new Image();
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(svgBlob);
-    
-    img.onload = () => {
-      // Fill white background
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, 500, 500);
-      
-      // Draw mandala
-      ctx.drawImage(img, 0, 0, 500, 500);
-      
-      modal.innerHTML = `
-        <div style="
-          background: white; padding: 30px; border-radius: 15px; 
-          box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
-        ">
-          <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
-          <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-            Right-click the image below and select "Save image as..." to download your PNG.
-          </p>
-          <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px;">
-            ${canvas.outerHTML}
-          </div>
-          <button onclick="this.closest('div').parentElement.remove()" style="
-            background: #7C3AED; color: white; border: none; padding: 12px 24px;
-            border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
-          ">Close</button>
-        </div>
-      `;
-      
-      URL.revokeObjectURL(url);
-    };
-    
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      modal.innerHTML = `
-        <div style="
-          background: white; padding: 30px; border-radius: 15px; 
-          box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
-        ">
-          <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
-          <p style="margin: 0 0 20px 0; color: #666;">
-            PNG conversion failed. Try the SVG option instead.
-          </p>
-          <button onclick="this.closest('div').parentElement.remove()" style="
-            background: #7C3AED; color: white; border: none; padding: 12px 24px;
-            border-radius: 8px; cursor: pointer; font-weight: 600;
-          ">Close</button>
-        </div>
-      `;
-    };
-    
-    img.src = url;
-    
-    document.body.appendChild(modal);
-    
-    // Click outside to close
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) modal.remove();
-    });
-  };
-
-  const isValidKey = isValidIPFSHash(userKey);
-  const selectedScheme = AESTHETIC_SCHEMES[selectedColorScheme];
-
-  return (
-    <div className="max-w-5xl mx-auto p-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2 flex items-center justify-center gap-3">
-          <Sparkles className="text-purple-600" />
-          Quorum Mandala Generator
-        </h1>
-        <p className="text-gray-600 text-lg">Create unique sacred mandalas from your Quorum user key</p>
-        <div className="mt-6 bg-white rounded-2xl p-6 shadow-lg border border-white/20">
-          <p className="text-sm text-gray-500 mb-3">Enter Your Quorum Key (must start with 'Qm' and be 46 characters):</p>
-          <input
-            type="text"
-            value={userKey}
-            onChange={(e) => setUserKey(e.target.value)}
-            placeholder="QmX7R9K2mPqWvYzN3jL8tE6FpA4sQ1cV5bM9xH2uD8wG3"
-            className={`w-full text-base bg-gray-50 px-4 py-3 rounded-xl font-mono border-2 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all ${
-              userKey && !isValidKey 
-                ? 'border-red-400 focus:border-red-500' 
-                : userKey && isValidKey
-                ? 'border-green-400 focus:border-green-500'
-                : 'border-gray-200 focus:border-purple-400'
-            }`}
-          />
-          {userKey && !isValidKey && (
-            <p className="text-red-500 text-sm mt-2">
-              Invalid IPFS key format. Must start with 'Qm' and be exactly 46 characters.
-            </p>
-          )}
-          
-          {/* QM Text Option */}
-          <div className="mt-4 flex items-center gap-3">
-            <div className="relative">
-              <input
-                type="checkbox"
-                id="showQM"
-                checked={showQM}
-                onChange={(e) => setShowQM(e.target.checked)}
-                className="sr-only"
-              />
-              <label
-                htmlFor="showQM"
-                className={`flex items-center justify-center w-5 h-5 rounded-md border-2 cursor-pointer transition-all ${
-                  showQM
-                    ? 'bg-purple-600 border-purple-600'
-                    : 'bg-white border-gray-300 hover:border-purple-400'
-                }`}
-              >
-                {showQM && (
-                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </label>
-            </div>
-            <label htmlFor="showQM" className="text-sm text-gray-700 font-medium cursor-pointer">
-              Add "QM"
-            </label>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20">
-            <h3 className="text-xl font-semibold mb-6 text-center text-gray-800">Your Quorum Mandala</h3>
-            <div className="flex justify-center mb-6">
-              {isValidKey ? (
-                <div className="relative">
-                  {generateMandalaAvatar(userKey, selectedScheme, 240, showQM)}
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/5 to-transparent"></div>
-                </div>
-              ) : (
-                <div className="w-60 h-60 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center shadow-inner">
-                  <Sparkles className="text-gray-400" size={48} />
-                </div>
-              )}
-            </div>
-            
-            <button
-              onClick={exportAvatar}
-              disabled={!isValidKey}
-              className="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white py-4 px-4 rounded-xl font-medium hover:from-purple-700 hover:to-blue-700 transition-all transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg"
-            >
-              <Download size={20} />
-              Download Quorum Mandala
-            </button>
-            
-            {/* SVG Download Option */}
-            <div className="mt-4 flex items-center gap-3">
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  id="downloadSVG"
-                  checked={downloadSVG}
-                  onChange={(e) => setDownloadSVG(e.target.checked)}
-                  className="sr-only"
-                />
-                <label
-                  htmlFor="downloadSVG"
-                  className={`flex items-center justify-center w-5 h-5 rounded-md border-2 cursor-pointer transition-all ${
-                    downloadSVG
-                      ? 'bg-purple-600 border-purple-600'
-                      : 'bg-white border-gray-300 hover:border-purple-400'
-                  }`}
-                >
-                  {downloadSVG && (
-                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </label>
-              </div>
-              <label htmlFor="downloadSVG" className="text-sm text-gray-700 font-medium cursor-pointer">
-                Download as SVG (instead of PNG)
-              </label>
-            </div>
-            
-            {isValidKey && (
-              <div className="space-y-3 text-sm bg-gray-50 rounded-xl p-4 mt-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Color Scheme:</span>
-                  <span className="font-medium text-gray-800">{selectedScheme.name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Pattern:</span>
-                  <span className="font-medium text-gray-800">{getMandalaDescription(userKey)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Source:</span>
-                  <span className="font-medium text-gray-800 font-mono text-xs">{userKey.slice(0, 8)}...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="lg:col-span-2">
-          {isValidKey ? (
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20">
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800">Choose Your Color Scheme</h3>
-                <p className="text-sm text-gray-600 mt-1">The mandala pattern is determined by your Quorum key - only colors change</p>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                {AESTHETIC_SCHEMES.map((scheme, index) => (
-                  <button
-                    key={`color-${index}`}
-                    onClick={() => setSelectedColorScheme(index)}
-                    className={`p-3 rounded-xl border-2 transition-all transform hover:scale-105 hover:shadow-lg ${
-                      selectedColorScheme === index
-                        ? 'border-purple-400 bg-purple-50 shadow-lg scale-105'
-                        : 'border-gray-200 hover:border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex justify-center mb-2">
-                      {generateMandalaAvatar(userKey, scheme, 80, showQM)}
-                    </div>
-                    <p className="text-xs font-medium text-gray-700 text-center">
-                      {scheme.name}
-                    </p>
-                  </button>
-                ))}
-              </div>
-              
-              <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl border border-blue-100">
-                <p className="text-sm text-blue-800">
-                  🔮 <strong>Mathematical Generation:</strong> Your Quorum IPFS key is analyzed to determine element count (3-16), 
-                  geometry type (straight/curved/mixed), complexity level, and positioning. Each unique key creates a 
-                  different mandala structure.
-                </p>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  );
-}
 
         // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
