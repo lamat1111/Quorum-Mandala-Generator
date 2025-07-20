@@ -59,7 +59,31 @@ body {
 .header p {
     color: #b0b0b0;
     font-size: 1.125rem;
-    margin-bottom: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.header p:last-of-type {
+    margin-bottom: 2rem;
+}
+
+/* Quorum Info */
+.quorum-info {
+    font-size: 1rem !important;
+    color: #94a3b8;
+    font-style: italic;
+    margin-top: 2rem !important;
+}
+
+.quorum-link {
+    color: #38bdf8;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.quorum-link:hover {
+    color: #60a5fa;
+    text-decoration: underline;
 }
 
 /* Input Section */
@@ -76,7 +100,7 @@ body {
 .input-section p {
     font-size: 1rem;
     color: #b0b0b0;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
 }
 
 .input-field {
@@ -117,6 +141,50 @@ body {
     color: #f87171;
     font-size: 0.875rem;
     margin-top: 0.5rem;
+}
+
+/* Input Bottom Row */
+.input-bottom-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+}
+
+/* Reset Button */
+.reset-btn {
+    background: none;
+    border: none;
+    color: #888888;
+    font-size: 0.75rem;
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+    opacity: 0.9;
+}
+
+.reset-btn:hover {
+    color: #b0b0b0;
+    opacity: 1;
+    background: rgba(60, 55, 68, 0.4);
+}
+
+/* Privacy Note */
+.privacy-note {
+    margin-top: 1.5rem;
+    padding: 0.75rem;
+    background: rgba(60, 55, 68, 0.2);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(60, 55, 68, 0.3);
+}
+
+.privacy-note p {
+    font-size: 0.8rem;
+    color: #808080;
+    margin: 0 !important;
+    text-align: center;
+    line-height: 1.4;
 }
 
 /* Checkbox Styles */

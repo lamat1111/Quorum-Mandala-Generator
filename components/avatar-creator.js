@@ -52,10 +52,32 @@ const Checkbox = ({ id, checked, onChange, label, centered = false }) => {
 
 // Main Avatar Creator Component
 function AvatarCreator() {
-  const [userKey, setUserKey] = React.useState("");
-  const [selectedColorScheme, setSelectedColorScheme] = React.useState(0);
-  const [showQM, setShowQM] = React.useState(false);
+  const [userKey, setUserKey] = React.useState(() => {
+    // Load from localStorage on initialization
+    return localStorage.getItem('quorum-mandala-key') || "";
+  });
+  const [selectedColorScheme, setSelectedColorScheme] = React.useState(() => {
+    const saved = localStorage.getItem('quorum-mandala-color-scheme');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  const [showQM, setShowQM] = React.useState(() => {
+    const saved = localStorage.getItem('quorum-mandala-show-qm');
+    return saved === 'true';
+  });
   const [downloadSVG, setDownloadSVG] = React.useState(false);
+
+  // Save to localStorage when state changes
+  React.useEffect(() => {
+    localStorage.setItem('quorum-mandala-key', userKey);
+  }, [userKey]);
+
+  React.useEffect(() => {
+    localStorage.setItem('quorum-mandala-color-scheme', selectedColorScheme.toString());
+  }, [selectedColorScheme]);
+
+  React.useEffect(() => {
+    localStorage.setItem('quorum-mandala-show-qm', showQM.toString());
+  }, [showQM]);
 
   // Update color scheme when key changes
   React.useEffect(() => {
@@ -65,6 +87,16 @@ function AvatarCreator() {
       setSelectedColorScheme(defaultSchemeIndex);
     }
   }, [userKey]);
+
+  const handleReset = () => {
+    setUserKey("");
+    setSelectedColorScheme(0);
+    setShowQM(false);
+    // Clear localStorage
+    localStorage.removeItem('quorum-mandala-key');
+    localStorage.removeItem('quorum-mandala-color-scheme');
+    localStorage.removeItem('quorum-mandala-show-qm');
+  };
 
   const handleExport = async () => {
     if (!window.MandalaUtils.isValidIPFSHash(userKey)) return;
@@ -102,11 +134,20 @@ function AvatarCreator() {
       React.createElement('p', {}, 
         "Create unique mandalas from your Quorum user key"
       ),
+      React.createElement('p', { className: 'quorum-info' }, 
+        "Quorum? Never heard of it? Your rock needs wifi! ",
+        React.createElement('a', {
+          href: "https://quorummessenger.com/",
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: "quorum-link"
+        }, "Check now")
+      ),
       
       // Input Section
       React.createElement('div', { className: 'input-section' },
         React.createElement('p', {}, 
-          "Enter Your Quorum Key (must start with 'Qm' and be 46 characters):"
+          "Enter Your Quorum Public Key (must start with 'Qm' and be 46 characters):"
         ),
         React.createElement('input', {
           type: "text",
@@ -126,12 +167,28 @@ function AvatarCreator() {
           className: 'error-message'
         }, "Invalid IPFS key format. Must start with 'Qm' and be exactly 46 characters."),
         
-        React.createElement(Checkbox, {
-          id: "showQM",
-          checked: showQM,
-          onChange: (e) => setShowQM(e.target.checked),
-          label: 'Add "QM"'
-        })
+        React.createElement('div', { className: 'input-bottom-row' },
+          React.createElement(Checkbox, {
+            id: "showQM",
+            checked: showQM,
+            onChange: (e) => setShowQM(e.target.checked),
+            label: 'Add "QM"'
+          }),
+          React.createElement('button', {
+            onClick: handleReset,
+            className: 'reset-btn',
+            type: 'button'
+          }, "Reset")
+        ),
+        
+        React.createElement('div', { className: 'privacy-note' },
+          React.createElement('p', {}, 
+            "🔒 Your key is only saved to your local browser and never shared with anyone."
+          ),
+          React.createElement('p', {}, 
+            "This is the key you see in your profile when you sign up on Quorum."
+          )
+        )
       )
     ),
 
