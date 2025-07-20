@@ -613,27 +613,148 @@
             if (!isValidIPFSHash(userKey)) return;
             
             try {
-              const svgElement = document.querySelector('.lg\\:col-span-1 svg');
+              // Find the main mandala SVG
+              const svgElement = document.querySelector('svg');
               if (!svgElement) {
                 alert('Could not find mandala to export');
                 return;
               }
 
+              // Get clean SVG data
               const svgData = svgElement.outerHTML
                 .replace(/width="\d+"/, 'width="500"')
                 .replace(/height="\d+"/, 'height="500"');
 
               if (downloadSVG) {
+                // SVG Export - copy to clipboard with instructions
                 await navigator.clipboard.writeText(svgData);
-                alert('SVG copied to clipboard! Paste into a text editor and save as .svg file.');
+                showExportModal('SVG', svgData);
               } else {
-                alert('PNG export will be available in the next update. For now, try SVG export.');
+                // PNG Export - show canvas modal for user to right-click save
+                createPNGModal(svgData);
               }
               
             } catch (error) {
               console.error('Export failed:', error);
               alert('Export failed. Please try again.');
             }
+          };
+
+          const showExportModal = (type, data) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+              position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+              background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
+              align-items: center; justify-content: center; font-family: system-ui;
+            `;
+            
+            modal.innerHTML = `
+              <div style="
+                background: white; padding: 30px; border-radius: 15px; 
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+              ">
+                <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">✅ ${type} Ready!</h3>
+                <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+                  Your mandala ${type} has been copied to your clipboard.
+                </p>
+                <div style="
+                  background: #f8f9fa; padding: 15px; border-radius: 8px; 
+                  margin: 0 0 20px 0; text-align: left; font-size: 14px;
+                ">
+                  <strong>To save as ${type.toLowerCase()} file:</strong><br>
+                  1. Open any text editor (Notepad, VS Code, etc.)<br>
+                  2. Paste (Ctrl+V / Cmd+V)<br>
+                  3. Save as "quorum-mandala.${type.toLowerCase()}"
+                </div>
+                <button onclick="this.closest('div').parentElement.remove()" style="
+                  background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                  border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                ">Got it!</button>
+              </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Click outside to close
+            modal.addEventListener('click', (e) => {
+              if (e.target === modal) modal.remove();
+            });
+          };
+
+          const createPNGModal = (svgData) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+              position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+              background: rgba(0,0,0,0.5); z-index: 10000; display: flex; 
+              align-items: center; justify-content: center; font-family: system-ui;
+            `;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = 500;
+            canvas.height = 500;
+            const ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const url = URL.createObjectURL(svgBlob);
+            
+            img.onload = () => {
+              // Fill white background
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, 500, 500);
+              
+              // Draw mandala
+              ctx.drawImage(img, 0, 0, 500, 500);
+              
+              modal.innerHTML = `
+                <div style="
+                  background: white; padding: 30px; border-radius: 15px; 
+                  box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
+                ">
+                  <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
+                  <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+                    Right-click the image below and select "Save image as..." to download your PNG.
+                  </p>
+                  <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px;">
+                    ${canvas.outerHTML}
+                  </div>
+                  <button onclick="this.closest('div').parentElement.remove()" style="
+                    background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                    border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                  ">Close</button>
+                </div>
+              `;
+              
+              URL.revokeObjectURL(url);
+            };
+            
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              modal.innerHTML = `
+                <div style="
+                  background: white; padding: 30px; border-radius: 15px; 
+                  box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+                ">
+                  <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
+                  <p style="margin: 0 0 20px 0; color: #666;">
+                    PNG conversion failed. Try the SVG option instead.
+                  </p>
+                  <button onclick="this.closest('div').parentElement.remove()" style="
+                    background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                    border-radius: 8px; cursor: pointer; font-weight: 600;
+                  ">Close</button>
+                </div>
+              `;
+            };
+            
+            img.src = url;
+            
+            document.body.appendChild(modal);
+            
+            // Click outside to close
+            modal.addEventListener('click', (e) => {
+              if (e.target === modal) modal.remove();
+            });
           };
 
           const isValidKey = isValidIPFSHash(userKey);
@@ -694,10 +815,10 @@
               )
             ),
             React.createElement('div', {
-              className: "grid grid-cols-1 lg:grid-cols-3 gap-8"
+              className: "grid grid-cols-1 gap-8"
             },
               React.createElement('div', {
-                className: "lg:col-span-1"
+                className: "w-full max-w-md mx-auto"
               },
                 React.createElement('div', {
                   className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
@@ -780,14 +901,14 @@
                   )
                 )
               ),
-              React.createElement('div', {
-                className: "lg:col-span-2"
+              isValidKey ? React.createElement('div', {
+                className: "w-full max-w-4xl mx-auto"
               },
-                isValidKey ? React.createElement('div', {
+                React.createElement('div', {
                   className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
                 },
                   React.createElement('div', {
-                    className: "mb-6"
+                    className: "mb-6 text-center"
                   },
                     React.createElement('h3', {
                       className: "text-lg font-semibold text-gray-800"
@@ -797,7 +918,7 @@
                     }, "The mandala pattern is determined by your Quorum key - only colors change")
                   ),
                   React.createElement('div', {
-                    className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"
+                    className: "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 justify-center"
                   },
                     AESTHETIC_SCHEMES.map((scheme, index) =>
                       React.createElement('button', {
@@ -827,8 +948,8 @@
                       className: "text-sm text-blue-800"
                     }, "🔮 Mathematical Generation: Your Quorum IPFS key is analyzed to determine element count (3-16), geometry type (straight/curved/mixed), complexity level, and positioning. Each unique key creates a different mandala structure.")
                   )
-                ) : null
-              )
+                )
+              ) : null
             )
           );
         }
