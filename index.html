@@ -697,14 +697,6 @@
               align-items: center; justify-content: center; font-family: system-ui;
             `;
             
-            // Load Nunito font before conversion
-            const fontLink = document.createElement('link');
-            fontLink.href = 'https://fonts.googleapis.com/css2?family=Nunito:wght@900&display=swap';
-            fontLink.rel = 'stylesheet';
-            if (!document.querySelector('link[href*="Nunito"]')) {
-              document.head.appendChild(fontLink);
-            }
-            
             // Create a temporary container to render the SVG
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = svgData;
@@ -730,50 +722,25 @@
               return;
             }
             
-            // Ensure proper dimensions and clipping
-            svgElement.setAttribute('width', '500');
-            svgElement.setAttribute('height', '500');
-            svgElement.setAttribute('viewBox', '0 0 500 500');
-            
-            // Add a circular clipping path to ensure everything stays inside the circle
-            const defsElement = svgElement.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-            if (!svgElement.querySelector('defs')) {
-              svgElement.insertBefore(defsElement, svgElement.firstChild);
-            }
-            
-            // Create circular clipping path
-            const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
-            clipPath.setAttribute('id', 'mandala-clip');
-            const clipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            clipCircle.setAttribute('cx', '250');
-            clipCircle.setAttribute('cy', '250');
-            clipCircle.setAttribute('r', '245'); // Slightly smaller to avoid edge artifacts
-            clipPath.appendChild(clipCircle);
-            defsElement.appendChild(clipPath);
-            
-            // Apply clipping to all elements except the background circle
-            const elements = svgElement.querySelectorAll('*:not(defs):not(defs *)');
-            elements.forEach((el, index) => {
-              if (index > 0) { // Skip the first background circle
-                el.setAttribute('clip-path', 'url(#mandala-clip)');
-              }
-            });
-            
+            // Create canvas for rendering
             const canvas = document.createElement('canvas');
             canvas.width = 500;
             canvas.height = 500;
             const ctx = canvas.getContext('2d');
             
-            // Wait for fonts to load, then convert
+            // Convert to PNG immediately without font loading
             const convertToPNG = () => {
-              // Convert SVG to data URL with proper encoding
-              const svgString = new XMLSerializer().serializeToString(svgElement);
-              // Ensure font is embedded in SVG
-              const fontEmbeddedSVG = svgString.replace(
+              // Clean up the SVG and ensure proper font declarations
+              let svgString = new XMLSerializer().serializeToString(svgElement);
+              
+              // Replace font references with web-safe fallbacks for PNG conversion
+              svgString = svgString.replace(
                 /font-family="[^"]*"/g, 
-                'font-family="Nunito, -apple-system, BlinkMacSystemFont, sans-serif"'
+                'font-family="Arial Black, Helvetica, sans-serif"'
               );
-              const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fontEmbeddedSVG);
+              svgString = svgString.replace(/font-weight="900"/g, 'font-weight="bold"');
+              
+              const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
               
               const img = new Image();
               
@@ -782,7 +749,7 @@
                   // Clear canvas (transparent background)
                   ctx.clearRect(0, 0, 500, 500);
                   
-                  // Draw mandala centered
+                  // Draw mandala
                   ctx.drawImage(img, 0, 0, 500, 500);
                   
                   // Convert canvas to blob and create download link
@@ -792,25 +759,49 @@
                     modal.innerHTML = `
                       <div style="
                         background: white; padding: 30px; border-radius: 15px; 
-                        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
+                        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 500px; text-align: center;
                       ">
                         <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
                         <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
                           Your mandala PNG with transparent background is ready for download.
                         </p>
-                        <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px; background: repeating-linear-gradient(45deg, #f8f9fa 0px, #f8f9fa 10px, #e9ecef 10px, #e9ecef 20px); display: flex; justify-content: center;">
-                          <img src="${url}" style="width: 300px; height: 300px; border-radius: 50%;" alt="Mandala PNG" />
+                        <div style="
+                          margin: 0 0 20px 0; 
+                          border: 2px dashed #ddd; 
+                          border-radius: 10px; 
+                          padding: 20px; 
+                          background: repeating-linear-gradient(45deg, #f8f9fa 0px, #f8f9fa 10px, #e9ecef 10px, #e9ecef 20px);
+                        ">
+                          <img src="${url}" style="
+                            width: 400px; 
+                            height: 400px; 
+                            border-radius: 50%; 
+                            display: block; 
+                            margin: 0 auto;
+                          " alt="Mandala PNG" />
                         </div>
                         <div style="margin: 0 0 20px 0;">
                           <a href="${url}" download="quorum-mandala.png" style="
-                            display: inline-block; background: #059669; color: white; text-decoration: none;
-                            padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
+                            display: inline-block; 
+                            background: #059669; 
+                            color: white; 
+                            text-decoration: none;
+                            padding: 12px 24px; 
+                            border-radius: 8px; 
+                            font-weight: 600; 
+                            font-size: 14px;
                             margin-right: 10px;
                           ">📱 Download PNG</a>
                         </div>
                         <button onclick="this.closest('div').parentElement.remove(); URL.revokeObjectURL('${url}')" style="
-                          background: #7C3AED; color: white; border: none; padding: 12px 24px;
-                          border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                          background: #7C3AED; 
+                          color: white; 
+                          border: none; 
+                          padding: 12px 24px;
+                          border-radius: 8px; 
+                          cursor: pointer; 
+                          font-weight: 600; 
+                          font-size: 14px;
                         ">Close</button>
                       </div>
                     `;
@@ -858,14 +849,8 @@
               img.src = svgDataUrl;
             };
             
-            // Wait for fonts to load before converting
-            if (document.fonts && document.fonts.ready) {
-              document.fonts.ready.then(() => {
-                setTimeout(convertToPNG, 500); // Extra delay to ensure font is fully loaded
-              });
-            } else {
-              setTimeout(convertToPNG, 1500); // Longer fallback delay
-            }
+            // Convert immediately
+            convertToPNG();
             
             document.body.appendChild(modal);
             
@@ -936,7 +921,7 @@
               className: "grid grid-cols-1 gap-8"
             },
               React.createElement('div', {
-                className: "w-full max-w-4xl mx-auto"
+                className: "w-full"
               },
                 React.createElement('div', {
                   className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
@@ -1024,7 +1009,7 @@
                 )
               ),
               isValidKey ? React.createElement('div', {
-                className: "w-full max-w-4xl mx-auto"
+                className: "w-full"
               },
                 React.createElement('div', {
                   className: "bg-white rounded-2xl shadow-xl p-6 border border-white/20"
