@@ -56,6 +56,14 @@ body {
     gap: 0.75rem;
 }
 
+.header h1 svg {
+    color: #38bdf8;
+    stroke: #38bdf8;
+    width: 2.5rem;
+    height: 2.5rem;
+    stroke-width: 2.5;
+}
+
 .header p {
     color: #b0b0b0;
     font-size: 1.125rem;
