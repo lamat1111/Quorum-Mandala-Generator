@@ -41,13 +41,63 @@ class PNGExporter {
       
       if (useNunitoFont) {
         // Wait for font to be ready
-        const fontLoaded = await window.MandalaUtils.waitForFont('Nunito', 1000);
+        const fontLoaded = await window.MandalaUtils.waitForFont('Nunito', 3000);
         
         if (fontLoaded) {
-          // Use web-safe approach with system fonts as fallback
+          // Embed the font as base64 data URL for reliable PNG rendering
+          try {
+            const fontResponse = await fetch('./assets/fonts/nunito-900.woff2');
+            
+            if (fontResponse.ok) {
+              const fontBuffer = await fontResponse.arrayBuffer();
+              const base64Font = btoa(String.fromCharCode(...new Uint8Array(fontBuffer)));
+              
+              // Embed the font as base64 data URL
+              const fontFace = `
+                <defs>
+                  <style type="text/css"><![CDATA[
+                    @font-face {
+                      font-family: 'NunitoPNG';
+                      font-style: normal;
+                      font-weight: 700;
+                      font-display: swap;
+                      src: url('data:font/woff2;base64,${base64Font}') format('woff2');
+                    }
+                  ]]></style>
+                </defs>
+              `;
+              
+              // Insert font definition after opening SVG tag
+              svgString = svgString.replace('<svg', `<svg${svgString.includes('xmlns') ? '' : ' xmlns="http://www.w3.org/2000/svg"'}`);
+              svgString = svgString.replace(/(<svg[^>]*>)/, `$1${fontFace}`);
+            } else {
+              throw new Error('Font file not accessible');
+            }
+          } catch (fontError) {
+            // Fallback to font reference
+            const fontFace = `
+              <defs>
+                <style type="text/css"><![CDATA[
+                  @font-face {
+                    font-family: 'NunitoPNG';
+                    font-style: normal;
+                    font-weight: 700;
+                    font-display: swap;
+                    src: url('./assets/fonts/nunito-900.woff2') format('woff2');
+                  }
+                ]]></style>
+              </defs>
+            `;
+            
+            // Insert font definition after opening SVG tag
+            svgString = svgString.replace('<svg', `<svg${svgString.includes('xmlns') ? '' : ' xmlns="http://www.w3.org/2000/svg"'}`);
+            svgString = svgString.replace(/(<svg[^>]*>)/, `$1${fontFace}`);
+          }
+          
+          // Replace font references
           svgString = svgString.replace(
             /font-family="[^"]*"/g, 
-            'font-family="Nunito, -apple-system, BlinkMacSystemFont, Arial, sans-serif"'
+            'font-family="NunitoPNG, Nunito, -apple-system, BlinkMacSystemFont, Arial, sans-serif"'
           );
           svgString = svgString.replace(/font-weight="700"/g, 'font-weight="700"');
         } else {
@@ -120,7 +170,7 @@ class PNGExporter {
         
         img.onerror = (error) => {
           URL.revokeObjectURL(url);
-          console.error('Image load error:', error);
+          console.error('PNG export failed - SVG could not be loaded as image');
           reject(error);
         };
         
