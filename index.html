@@ -639,7 +639,7 @@
                 showExportModal('SVG', svgData);
               } else {
                 // PNG Export - show canvas modal for user to right-click save
-                createPNGModal(svgData);
+                await createPNGModal(svgData);
               }
               
             } catch (error) {
@@ -689,7 +689,7 @@
             });
           };
 
-          const createPNGModal = (svgData) => {
+          const createPNGModal = async (svgData) => {
             const modal = document.createElement('div');
             modal.style.cssText = `
               position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
@@ -728,33 +728,90 @@
             canvas.height = 500;
             const ctx = canvas.getContext('2d');
             
-            // Convert to PNG immediately without font loading
-            const convertToPNG = () => {
-              // Clean up the SVG and ensure proper font declarations
-              let svgString = new XMLSerializer().serializeToString(svgElement);
-              
-              // Replace font references with web-safe fallbacks for PNG conversion
-              svgString = svgString.replace(
-                /font-family="[^"]*"/g, 
-                'font-family="Arial Black, Helvetica, sans-serif"'
-              );
-              svgString = svgString.replace(/font-weight="900"/g, 'font-weight="bold"');
-              
-              const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
-              
-              const img = new Image();
-              
-              img.onload = () => {
+            // Convert to PNG with proper font loading
+            const convertToPNG = async (useNunitoFont = true) => {
+              try {
+                // Get the SVG string
+                let svgString = new XMLSerializer().serializeToString(svgElement);
+                
+                if (useNunitoFont) {
+                  // Try to load Nunito font first
+                  try {
+                    if (document.fonts && document.fonts.load) {
+                      await document.fonts.load('900 16px Nunito');
+                      await document.fonts.ready;
+                    }
+                    
+                    // Ensure Nunito font is properly embedded in the SVG
+                    const fontCSS = `
+                      <style type="text/css">
+                        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@900&amp;display=swap');
+                        text { font-family: 'Nunito', Arial Black, sans-serif !important; font-weight: 900 !important; }
+                      </style>
+                    `;
+                    
+                    // Insert font CSS at the beginning of SVG
+                    svgString = svgString.replace('<svg', fontCSS + '<svg');
+                  } catch (fontError) {
+                    console.warn('Nunito font loading failed, using fallback font');
+                    // Fallback to regular Arial with bold weight
+                    svgString = svgString.replace(
+                      /font-family="[^"]*"/g, 
+                      'font-family="Arial, Helvetica, sans-serif"'
+                    );
+                    svgString = svgString.replace(/font-weight="900"/g, 'font-weight="bold"');
+                    // Add stroke to make the text more visible with regular Arial
+                    svgString = svgString.replace(
+                      /<text([^>]*)>/g,
+                      '<text$1 stroke-width="1">'
+                    );
+                  }
+                } else {
+                  // Use fallback font immediately with adjusted weight
+                  svgString = svgString.replace(
+                    /font-family="[^"]*"/g, 
+                    'font-family="Arial, Helvetica, sans-serif"'
+                  );
+                  svgString = svgString.replace(/font-weight="900"/g, 'font-weight="bold"');
+                  // Add stroke to make the text more visible with regular Arial
+                  svgString = svgString.replace(
+                    /<text([^>]*)>/g,
+                    '<text$1 stroke-width="1">'
+                  );
+                }
+                
+                // Ensure proper namespace
+                if (!svgString.includes('xmlns')) {
+                  svgString = svgString.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+                }
+                
+                // Create the image
+                const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                
+                img.onload = () => {
                 try {
-                  // Clear canvas (transparent background)
+                  // Clear canvas with transparent background
                   ctx.clearRect(0, 0, 500, 500);
                   
-                  // Draw mandala
-                  ctx.drawImage(img, 0, 0, 500, 500);
+                  // Create circular clipping mask
+                  ctx.save();
+                  ctx.beginPath();
+                  ctx.arc(250, 250, 250, 0, 2 * Math.PI);
+                  ctx.clip();
                   
-                  // Convert canvas to blob and create download link
+                  // Draw the mandala image
+                  ctx.drawImage(img, 0, 0, 500, 500);
+                  ctx.restore();
+                  
+                  // Convert to PNG blob
                   canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
+                    
+                    const fontNote = useNunitoFont ? '' : '<p style="margin: 10px 0; color: #f59e0b; font-size: 13px;">Note: Using fallback font due to Nunito loading issues.</p>';
                     
                     modal.innerHTML = `
                       <div style="
@@ -765,6 +822,7 @@
                         <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
                           Your mandala PNG with transparent background is ready for download.
                         </p>
+                        ${fontNote}
                         <div style="
                           margin: 0 0 20px 0; 
                           border: 2px dashed #ddd; 
@@ -827,30 +885,64 @@
                 }
               };
               
-              img.onerror = (error) => {
-                console.error('Image load failed:', error);
-                modal.innerHTML = `
-                  <div style="
-                    background: white; padding: 30px; border-radius: 15px; 
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
-                  ">
-                    <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
-                    <p style="margin: 0 0 20px 0; color: #666;">
-                      Image conversion failed. Try the SVG option instead.
-                    </p>
-                    <button onclick="this.closest('div').parentElement.remove()" style="
-                      background: #7C3AED; color: white; border: none; padding: 12px 24px;
-                      border-radius: 8px; cursor: pointer; font-weight: 600;
-                    ">Close</button>
-                  </div>
-                `;
+              img.onerror = async (error) => {
+                console.error('Image load failed with Nunito font:', error);
+                URL.revokeObjectURL(svgUrl);
+                
+                // If this was the first attempt with Nunito, try again with fallback font
+                if (useNunitoFont) {
+                  console.log('Retrying with fallback font...');
+                  await convertToPNG(false); // Retry with fallback font
+                } else {
+                  // Both attempts failed, show error
+                  modal.innerHTML = `
+                    <div style="
+                      background: white; padding: 30px; border-radius: 15px; 
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+                    ">
+                      <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Export Failed</h3>
+                      <p style="margin: 0 0 20px 0; color: #666;">
+                        Unable to convert the mandala to PNG format. Please use the SVG export option for best results.
+                      </p>
+                      <button onclick="this.closest('div').parentElement.remove()" style="
+                        background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                        border-radius: 8px; cursor: pointer; font-weight: 600;
+                      ">Close</button>
+                    </div>
+                  `;
+                }
               };
               
-              img.src = svgDataUrl;
+              img.src = svgUrl;
+                
+              } catch (error) {
+                console.error('PNG conversion error:', error);
+                // If this was the first attempt, retry with fallback font
+                if (useNunitoFont) {
+                  await convertToPNG(false);
+                } else {
+                  // Show error if both attempts failed
+                  modal.innerHTML = `
+                    <div style="
+                      background: white; padding: 30px; border-radius: 15px; 
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
+                    ">
+                      <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Export Failed</h3>
+                      <p style="margin: 0 0 20px 0; color: #666;">
+                        Unable to convert the mandala to PNG format. Please use the SVG export option for best results.
+                      </p>
+                      <button onclick="this.closest('div').parentElement.remove()" style="
+                        background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                        border-radius: 8px; cursor: pointer; font-weight: 600;
+                      ">Close</button>
+                    </div>
+                  `;
+                }
+              }
             };
             
             // Convert immediately
-            convertToPNG();
+            await convertToPNG();
             
             document.body.appendChild(modal);
             
