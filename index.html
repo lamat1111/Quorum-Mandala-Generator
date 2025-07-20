@@ -724,59 +724,119 @@
               return;
             }
             
+            // Ensure proper dimensions and clipping
+            svgElement.setAttribute('width', '500');
+            svgElement.setAttribute('height', '500');
+            svgElement.setAttribute('viewBox', '0 0 500 500');
+            
+            // Add a circular clipping path to ensure everything stays inside the circle
+            const defsElement = svgElement.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+            if (!svgElement.querySelector('defs')) {
+              svgElement.insertBefore(defsElement, svgElement.firstChild);
+            }
+            
+            // Create circular clipping path
+            const clipPath = document.createElementNS('http://www.w3.org/2000/svg', 'clipPath');
+            clipPath.setAttribute('id', 'mandala-clip');
+            const clipCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            clipCircle.setAttribute('cx', '250');
+            clipCircle.setAttribute('cy', '250');
+            clipCircle.setAttribute('r', '250');
+            clipPath.appendChild(clipCircle);
+            defsElement.appendChild(clipPath);
+            
+            // Apply clipping to all elements except the background circle
+            const elements = svgElement.querySelectorAll('*:not(defs):not(defs *)');
+            elements.forEach((el, index) => {
+              if (index > 0) { // Skip the first background circle
+                el.setAttribute('clip-path', 'url(#mandala-clip)');
+              }
+            });
+            
             const canvas = document.createElement('canvas');
             canvas.width = 500;
             canvas.height = 500;
             const ctx = canvas.getContext('2d');
             
-            // Convert SVG to data URL
-            const svgString = new XMLSerializer().serializeToString(svgElement);
-            const svgDataUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+            // Load Google Font before conversion
+            const fontLoadPromise = new Promise((resolve) => {
+              if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(resolve);
+              } else {
+                // Fallback for older browsers
+                setTimeout(resolve, 1000);
+              }
+            });
             
-            const img = new Image();
-            
-            img.onload = () => {
-              try {
-                // Fill white background
-                ctx.fillStyle = 'white';
-                ctx.fillRect(0, 0, 500, 500);
-                
-                // Draw mandala
-                ctx.drawImage(img, 0, 0, 500, 500);
-                
-                // Convert canvas to blob and create download link
-                canvas.toBlob((blob) => {
-                  const url = URL.createObjectURL(blob);
+            fontLoadPromise.then(() => {
+              // Convert SVG to data URL with proper encoding
+              const svgString = new XMLSerializer().serializeToString(svgElement);
+              const svgDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+              
+              const img = new Image();
+              
+              img.onload = () => {
+                try {
+                  // DON'T fill background - leave transparent
+                  // ctx.fillStyle = 'white';
+                  // ctx.fillRect(0, 0, 500, 500);
                   
+                  // Draw mandala on transparent background
+                  ctx.drawImage(img, 0, 0, 500, 500);
+                  
+                  // Convert canvas to blob and create download link
+                  canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    
+                    modal.innerHTML = `
+                      <div style="
+                        background: white; padding: 30px; border-radius: 15px; 
+                        box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
+                      ">
+                        <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
+                        <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
+                          Your mandala PNG with transparent background is ready for download.
+                        </p>
+                        <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px; background: repeating-linear-gradient(45deg, #f8f9fa 0px, #f8f9fa 10px, #e9ecef 10px, #e9ecef 20px);">
+                          <img src="${url}" style="max-width: 100%; height: auto; border-radius: 8px;" alt="Mandala PNG" />
+                        </div>
+                        <div style="margin: 0 0 20px 0;">
+                          <a href="${url}" download="quorum-mandala.png" style="
+                            display: inline-block; background: #059669; color: white; text-decoration: none;
+                            padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
+                            margin-right: 10px;
+                          ">📱 Download PNG</a>
+                        </div>
+                        <button onclick="this.closest('div').parentElement.remove(); URL.revokeObjectURL('${url}')" style="
+                          background: #7C3AED; color: white; border: none; padding: 12px 24px;
+                          border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                        ">Close</button>
+                      </div>
+                    `;
+                  }, 'image/png');
+                  
+                } catch (error) {
+                  console.error('Canvas conversion failed:', error);
                   modal.innerHTML = `
                     <div style="
                       background: white; padding: 30px; border-radius: 15px; 
-                      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 550px; text-align: center;
+                      box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
                     ">
-                      <h3 style="margin: 0 0 15px 0; color: #333; font-size: 20px;">🖼️ PNG Ready!</h3>
-                      <p style="margin: 0 0 20px 0; color: #666; line-height: 1.5;">
-                        Right-click the image below and select "Save image as..." to download your PNG.
+                      <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
+                      <p style="margin: 0 0 20px 0; color: #666;">
+                        Canvas conversion failed. Try the SVG option instead.
                       </p>
-                      <div style="margin: 0 0 20px 0; border: 2px dashed #ddd; border-radius: 10px; padding: 15px;">
-                        <img src="${url}" style="max-width: 100%; height: auto; border-radius: 8px;" alt="Mandala PNG" />
-                      </div>
-                      <div style="margin: 0 0 20px 0;">
-                        <a href="${url}" download="quorum-mandala.png" style="
-                          display: inline-block; background: #059669; color: white; text-decoration: none;
-                          padding: 12px 24px; border-radius: 8px; font-weight: 600; font-size: 14px;
-                          margin-right: 10px;
-                        ">📱 Download PNG</a>
-                      </div>
-                      <button onclick="this.closest('div').parentElement.remove(); URL.revokeObjectURL('${url}')" style="
+                      <button onclick="this.closest('div').parentElement.remove()" style="
                         background: #7C3AED; color: white; border: none; padding: 12px 24px;
-                        border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px;
+                        border-radius: 8px; cursor: pointer; font-weight: 600;
                       ">Close</button>
                     </div>
                   `;
-                }, 'image/png');
-                
-              } catch (error) {
-                console.error('Canvas conversion failed:', error);
+                }
+              };
+              
+              img.onerror = (error) => {
+                console.error('Image load failed:', error);
                 modal.innerHTML = `
                   <div style="
                     background: white; padding: 30px; border-radius: 15px; 
@@ -784,7 +844,7 @@
                   ">
                     <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
                     <p style="margin: 0 0 20px 0; color: #666;">
-                      Canvas conversion failed. Try the SVG option instead.
+                      Image conversion failed. Try the SVG option instead.
                     </p>
                     <button onclick="this.closest('div').parentElement.remove()" style="
                       background: #7C3AED; color: white; border: none; padding: 12px 24px;
@@ -792,29 +852,11 @@
                     ">Close</button>
                   </div>
                 `;
-              }
-            };
+              };
+              
+              img.src = svgDataUrl;
+            });
             
-            img.onerror = (error) => {
-              console.error('Image load failed:', error);
-              modal.innerHTML = `
-                <div style="
-                  background: white; padding: 30px; border-radius: 15px; 
-                  box-shadow: 0 20px 40px rgba(0,0,0,0.3); max-width: 450px; text-align: center;
-                ">
-                  <h3 style="margin: 0 0 15px 0; color: #e53e3e;">❌ PNG Failed</h3>
-                  <p style="margin: 0 0 20px 0; color: #666;">
-                    Image conversion failed. Try the SVG option instead.
-                  </p>
-                  <button onclick="this.closest('div').parentElement.remove()" style="
-                    background: #7C3AED; color: white; border: none; padding: 12px 24px;
-                    border-radius: 8px; cursor: pointer; font-weight: 600;
-                  ">Close</button>
-                </div>
-              `;
-            };
-            
-            img.src = svgDataUrl;
             document.body.appendChild(modal);
             
             // Click outside to close
