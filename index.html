@@ -23,10 +23,6 @@
         const { useState, useEffect } = React;
         const { Download, Shuffle, Sparkles } = lucide;
 
-
-import React, { useState, useEffect } from 'react';
-import { Download, Shuffle, Sparkles } from 'lucide-react';
-
 // Advanced deterministic random generator
 class AestheticRandom {
   constructor(seed) {
@@ -592,7 +588,7 @@ const getMandalaDescription = (userKey) => {
   return `${analysis.elementCount} ${geometryTypes[analysis.geometryType]} ${complexityLevels[analysis.complexityLevel]} Elements`;
 };
 
-export default function AvatarCreator() {
+function AvatarCreator() {
   const [userKey, setUserKey] = useState("");
   const [selectedColorScheme, setSelectedColorScheme] = useState(0);
   const [showQM, setShowQM] = useState(false);
@@ -951,6 +947,7 @@ export default function AvatarCreator() {
   );
 }
 
+        // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(React.createElement(AvatarCreator));
     </script>
