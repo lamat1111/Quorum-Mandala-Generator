@@ -147,7 +147,7 @@ function AvatarCreator() {
       // Input Section
       React.createElement('div', { className: 'input-section' },
         React.createElement('p', {}, 
-          "Enter Your Quorum Public Key (must start with 'Qm' and be 46 characters):"
+          "Enter Your Quorum Account ID (must start with 'Qm' and be 46 characters):"
         ),
         React.createElement('input', {
           type: "text",
@@ -183,7 +183,7 @@ function AvatarCreator() {
         
         React.createElement('div', { className: 'privacy-note' },
           React.createElement('p', {}, 
-            "🔒 Your key is only saved to your local browser and never shared with anyone."
+            "🔒 Your account ID is only saved to your local browser and never shared with anyone."
           ),
           React.createElement('p', {}, 
             "This is the key you see in your profile when you sign up on Quorum."
